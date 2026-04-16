@@ -28,7 +28,7 @@ type qseecom_dma_heap_device, dev_type;
 
 # metadata partition mount point
 # Used by file_contexts_ for /metadata labeling
-type metadata_file, file_type;
+# NOTE: metadata_file is already defined in AOSP, do NOT redeclare
   
 # persist partition mount point  
 # Used by file_contexts_ for /persist labeling
