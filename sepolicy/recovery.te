@@ -1,0 +1,42 @@
+# =============================================================================  
+# recovery.te  
+# SELinux policy for OrangeFox recovery — Xiaomi Myron  
+# Platform: Canoe (Snapdragon 8 Elite) / Android 16  
+#  
+# Recovery runs as PERMISSIVE domain (TWRP base: "permissive recovery;")  
+# All access allowed at runtime. allow rules only reduce AVC log noise.  
+# Only custom-declared types get allow rules — zero AOSP type rules.  
+# =============================================================================  
+  
+# ===========================================================  
+# Type Declarations — Device-Specific ONLY  
+#  
+# AOSP already defines: tee_device, block_device, vendor_file,  
+#   sysfs, system_file, rootfs, configfs, functionfs,  
+#   metadata_file, persist_file, proc, binder_device,  
+#   hwbinder_device, vndbinder_device, input_device,  
+#   graphics_device, tmpfs, devpts, log_device  
+#  
+# Do NOT redeclare any of the above.  
+# ===========================================================  
+  
+# /dev/spcom — Qualcomm Secure Processor communication  
+type spcom_device, dev_type;
+ 
+# /dev/dma_heap/qcom,qseecom* — TEE memory allocation
+type qseecom_dma_heap_device, dev_type;
+
+# metadata partition mount point
+# Used by file_contexts_ for /metadata labeling
+type metadata_file, file_type;
+  
+# persist partition mount point  
+# Used by file_contexts_ for /persist labeling
+type persist_file, file_type;
+  
+# ===========================================================  
+# Allow Rules — CUSTOM TYPES ONLY  
+# ===========================================================  
+  
+allow recovery spcom_device:chr_file { open read write ioctl getattr };  
+allow recovery qseecom_dma_heap_device:chr_file { open read write ioctl getattr };  

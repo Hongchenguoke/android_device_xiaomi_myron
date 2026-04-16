@@ -1,0 +1,24 @@
+# =============================================================================  
+# init.recovery.ldconfig.rc  
+# Dynamic linker environment setup for recovery  
+#  
+# Ensures linker64 can resolve vendor libraries needed by:  
+#   qseecomd (root, /vendor/bin/)  
+#   onekeymint (system, /vendor/bin/hw/)  
+#   gatekeeper (system, /vendor/bin/hw/)  
+#  
+# Actual namespace config lives in /system/etc/ld.config.txt (see separate file)  
+# =============================================================================  
+
+on early-init
+    # Fallback LD_LIBRARY_PATH for shell scripts and binaries that
+    # bypass linker namespace config (e.g., exec from /sbin)
+    export LD_LIBRARY_PATH /system/lib64:/vendor/lib64:/sbin
+
+on init
+    # Vendor lib compatibility symlinks
+    # Some vendor binaries reference /system/vendor/lib64 instead of /vendor/lib64
+    symlink /vendor/lib64 /system/vendor/lib64
+
+    # /lib64 fallback for binaries using bare /lib64 in RPATH
+    symlink /vendor/lib64 /lib64

@@ -1,0 +1,61 @@
+# =============================================================================  
+# ld.config.txt  
+# Dynamic linker namespace configuration for OrangeFox Recovery  
+#  
+# Device:   Xiaomi Myron (Redmi K90 Pro Max)  
+# Platform: arm64 only (TARGET_2ND_ARCH is empty, no 32-bit)  
+#  
+# Policy: FULLY PERMISSIVE (non-isolated, single namespace)  
+#  
+# Rationale:  
+#   Recovery is a minimal single-user environment. Namespace isolation  
+#   serves no purpose here and prevents cross-library resolution:  
+#     - qseecomd (/vendor/bin/) needs libcutils (/system/lib64/)  
+#     - onekeymint (/vendor/bin/hw/) needs libbinder_ndk (/system/lib64/)  
+#     - TWRP (/sbin/) needs vendor display HAL libs (/vendor/lib64/)  
+# =============================================================================  
+
+# ===========================
+# Directory → Section mapping
+# ===========================
+dir.default = /sbin
+dir.default = /system/bin
+dir.default = /system/bin/hw
+dir.default = /system/xbin
+dir.default = /vendor/bin
+dir.default = /vendor/bin/hw
+dir.default = /tmp
+dir.default = /data/local/tmp
+dir.default = /product/bin
+dir.default = /odm/bin
+
+# ===========================
+# Section: default
+# ===========================
+[default]
+additional.namespaces =
+
+namespace.default.isolated = false
+
+namespace.default.search.paths  = /system/${LIB}
+namespace.default.search.paths += /system/${LIB}/hw
+namespace.default.search.paths += /vendor/${LIB}
+namespace.default.search.paths += /vendor/${LIB}/hw
+namespace.default.search.paths += /system/vendor/${LIB}
+namespace.default.search.paths += /product/${LIB}
+namespace.default.search.paths += /odm/${LIB}
+namespace.default.search.paths += /sbin
+
+namespace.default.permitted.paths  = /system/${LIB}
+namespace.default.permitted.paths += /vendor/${LIB}
+namespace.default.permitted.paths += /system/vendor/${LIB}
+namespace.default.permitted.paths += /product/${LIB}
+namespace.default.permitted.paths += /odm/${LIB}
+namespace.default.permitted.paths += /sbin
+namespace.default.permitted.paths += /data
+namespace.default.permitted.paths += /postinstall
+namespace.default.permitted.paths += /apex/com.android.runtime/${LIB}
+namespace.default.permitted.paths += /apex/com.android.art/${LIB}
+
+namespace.default.asan.search.paths  =
+namespace.default.asan.permitted.paths =

@@ -1,0 +1,71 @@
+# =============================================================================  
+# init.recovery.hlthchrg.rc  
+# Battery health and charging subsystem for recovery  
+#  
+# Verified power_supply nodes (from ls /sys/class/power_supply/):  
+#   battery                                      — type: Battery  
+#   usb                                          — type: USB  
+#   wireless                                     — wireless charging pad  
+#   ucsi-source-psy-soc:pmic-glink:ucsi-glink1   — USB-C PD source  
+#  
+# Module dependencies:  
+#   qti_pmic_glink.ko → qti_battery_charger.ko → bq27z561.ko  
+# =============================================================================  
+
+on init  
+    # ---- Load battery/charging kernel modules ----  
+    # PMIC GenLink: provides PMIC communication bus
+    insmod /vendor/lib/modules/qti_pmic_glink.ko
+    # Battery charger: PMIC charge control, creates /sys/class/power_supply/battery
+    insmod /vendor/lib/modules/qti_battery_charger.ko
+    # TI BQ27Z561 fuel gauge: accurate State of Charge percentage
+    insmod /vendor/lib/modules/bq27z561.ko
+
+    # ---- Xiaomi MCA charging (optional, for fast-charge indicator) ----
+    # Basic charging works without these. Uncomment for full MCA support:
+    # insmod /vendor/lib/modules/mca_qcom_sysfs.ko
+    # insmod /vendor/lib/modules/mca_strategy_class.ko
+    # insmod /vendor/lib/modules/mca_strategy_buckchg.ko
+    # insmod /vendor/lib/modules/mca_strategy_quickchg.ko
+    # insmod /vendor/lib/modules/mca_strategy_fg_comp.ko
+
+on boot
+    # ===========================================================
+    # /sys/class/power_supply/battery — Main battery (type: Battery)
+    # ===========================================================
+    chown system system /sys/class/power_supply/battery/status
+    chmod 0444 /sys/class/power_supply/battery/status
+    chown system system /sys/class/power_supply/battery/capacity
+    chmod 0444 /sys/class/power_supply/battery/capacity
+    chown system system /sys/class/power_supply/battery/health
+    chmod 0444 /sys/class/power_supply/battery/health
+    chown system system /sys/class/power_supply/battery/temp
+    chmod 0444 /sys/class/power_supply/battery/temp
+    chown system system /sys/class/power_supply/battery/voltage_now
+    chmod 0444 /sys/class/power_supply/battery/voltage_now
+    chown system system /sys/class/power_supply/battery/current_now
+    chmod 0444 /sys/class/power_supply/battery/current_now
+    chown system system /sys/class/power_supply/battery/charge_full
+    chmod 0444 /sys/class/power_supply/battery/charge_full
+    chown system system /sys/class/power_supply/battery/charge_full_design
+    chmod 0444 /sys/class/power_supply/battery/charge_full_design
+
+    # ===========================================================
+    # /sys/class/power_supply/usb — USB charger (type: USB)
+    # ===========================================================
+    chown system system /sys/class/power_supply/usb/online
+    chmod 0444 /sys/class/power_supply/usb/online
+    chown system system /sys/class/power_supply/usb/type
+    chmod 0444 /sys/class/power_supply/usb/type
+    chown system system /sys/class/power_supply/usb/voltage_now
+    chmod 0444 /sys/class/power_supply/usb/voltage_now
+    chown system system /sys/class/power_supply/usb/current_max
+    chmod 0444 /sys/class/power_supply/usb/current_max
+
+    # ===========================================================
+    # /sys/class/power_supply/wireless — Wireless charging pad
+    # ===========================================================
+    chown system system /sys/class/power_supply/wireless/online
+    chmod 0444 /sys/class/power_supply/wireless/online
+    chown system system /sys/class/power_supply/wireless/type
+    chmod 0444 /sys/class/power_supply/wireless/type

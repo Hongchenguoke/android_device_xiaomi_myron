@@ -1,0 +1,193 @@
+# =============================================================================  
+# init.recovery.qcom.rc  
+# Auto-imported by Android init via ro.hardware=qcom  
+#  
+# Device:   Xiaomi Myron (Redmi K90 Pro Max)  
+# Platform: Canoe (Snapdragon 8 Elite) / Android 16 / GKI 2.0  
+# Recovery: OrangeFox fox-14.1  
+#  
+# Verified module dependency chains (from modules.dep):  
+#   focaltech_touch_3683.ko: gh_irq_lend.ko xiaomi_touch.ko panel_event_notifier.ko  
+#   xiaomi_touch.ko: panel_event_notifier.ko  
+#   msm_drm.ko: hdcp_qseecom_dlkm.ko smmu_proxy_dlkm.ko panel_event_notifier.ko  
+#   mitee_dlkm.ko: smcinvoke_dlkm.ko  
+#  
+# Verified device data:  
+#   UDC: a600000.dwc3  
+#   UFS: 1d84000.ufshc  
+#   TEE node: /dev/qseecom (exists, /dev/keystore does NOT exist)  
+#   qseecomd user: root, group: root drmrpc  
+#   qseecomd completion property: vendor.sys.listeners.registered=true  
+# =============================================================================  
+
+import /init.recovery.service.rc
+import /init.recovery.usb.rc
+import /init.recovery.logd.rc
+import /init.recovery.hlthchrg.rc
+import /init.recovery.ldconfig.rc
+import /init.recovery.wifi.rc
+
+# ==============================================================
+# Phase: early-init
+# ==============================================================
+on early-init
+    setprop ro.boot.mode "recovery"
+
+    # Allow module loading in recovery context
+    write /proc/sys/kernel/modules_disabled 0
+
+    # Disable kernel hotplug helper (udev/recovery handles device nodes)
+    write /proc/sys/kernel/hotplug ""
+
+# ==============================================================
+# Phase: init
+# Purpose: Hardware bringup — modules, device nodes, properties
+# ==============================================================
+on init
+    # ---- Platform identity ----
+    setprop ro.hardware qcom
+    setprop ro.board.platform canoe
+    setprop ro.boot.hardware.platform canoe
+
+    # ---- Directory scaffold ----
+    mkdir /config 0755 root root
+    mkdir /mnt/vendor 0755 root root
+    mkdir /mnt/vendor/persist 0755 root root
+    mkdir /metadata 0771 root root
+
+    # ---- Wait for UFS controller ----
+    # UFS sysfs_path: /sys/devices/platform/soc/1d84000.ufshc
+    wait /dev/block/platform/soc/1d84000.ufshc 5
+    symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
+
+    # ===========================================================
+    # KERNEL MODULE LOADING
+    #
+    # All .ko files MUST be pre-extracted from vendor_dlkm into
+    # the recovery ramdisk at /vendor/lib/modules/
+    #
+    # insmod failures are non-fatal: init logs to dmesg and
+    # continues to the next command.
+    # ===========================================================
+    # Phase 1: Gunyah
+    insmod /vendor/lib/modules/gh_rm_booster.ko
+    insmod /vendor/lib/modules/gh_ctrl.ko
+    insmod /vendor/lib/modules/gh_irq_lend.ko
+    insmod /vendor/lib/modules/gh_panic_notifier.ko
+    insmod /vendor/lib/modules/gh_tlmm_vm_mem_access.ko
+    insmod /vendor/lib/modules/hvc_gunyah.ko
+    insmod /vendor/lib/modules/qrtr-gunyah.ko
+
+    # Phase 2: TEE
+    insmod /vendor/lib/modules/smcinvoke_dlkm.ko
+    insmod /vendor/lib/modules/mitee_dlkm.ko
+    insmod /vendor/lib/modules/tmecom-intf_dlkm.ko
+    insmod /vendor/lib/modules/tz_log_dlkm.ko
+
+    # Phase 3: Crypto (sps_drv是qce50的依赖)
+    insmod /vendor/lib/modules/sps_drv.ko
+    insmod /vendor/lib/modules/qce50_dlkm.ko
+    insmod /vendor/lib/modules/qcedev-mod_dlkm.ko
+    insmod /vendor/lib/modules/qcrypto-msm_dlkm.ko
+
+    # Phase 3.5: glink基础链 (msm_hw_fence/qsee_ipc依赖)
+    insmod /vendor/lib/modules/qcom_glink.ko
+    insmod /vendor/lib/modules/qcom_glink_smem.ko
+    insmod /vendor/lib/modules/qcom_smd.ko
+    insmod /vendor/lib/modules/rproc_qcom_common.ko
+    insmod /vendor/lib/modules/qsee_ipc_irq_bridge.ko
+
+    # Phase 4: Display
+    insmod /vendor/lib/modules/sync_fence.ko
+    insmod /vendor/lib/modules/msm_hw_fence.ko
+    insmod /vendor/lib/modules/drm_display_helper.ko
+    insmod /vendor/lib/modules/panel_event_notifier.ko
+    insmod /vendor/lib/modules/smmu_proxy_dlkm.ko
+    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko
+    insmod /vendor/lib/modules/msm_drm.ko
+
+    # Phase 5: Touch
+    insmod /vendor/lib/modules/xiaomi_touch.ko
+    insmod /vendor/lib/modules/focaltech_touch_3683.ko
+
+    # ---- TEE device node permissions ----
+    # /dev/qseecom: created by smcinvoke_dlkm.ko
+    # Verified: exists on device. Permissions match qseecomd user=root group=root,drmrpc
+    wait /dev/qseecom 2
+    chown root drmrpc /dev/qseecom
+    chmod 0660 /dev/qseecom
+
+    # /dev/spcom: Secure Processor communication
+    wait /dev/spcom 2
+    chown system system /dev/spcom
+    chmod 0660 /dev/spcom
+
+    # DMA heap nodes (kernel built-in, required by qseecomd for TEE memory allocation)
+    chown system system /dev/dma_heap/qcom,qseecom
+    chmod 0660 /dev/dma_heap/qcom,qseecom
+    chown system system /dev/dma_heap/qcom,qseecom-ta
+    chmod 0660 /dev/dma_heap/qcom,qseecom-ta
+    chown system system /dev/dma_heap/qcom,secure-non-pixel
+    chmod 0660 /dev/dma_heap/qcom,secure-non-pixel
+    chown system system /dev/dma_heap/qcom,secure-pixel
+    chmod 0660 /dev/dma_heap/qcom,secure-pixel
+
+    # NOTE: /dev/keystore does NOT exist on Android 16 OneKeyMint.
+    # OneKeyMint communicates via /dev/qseecom + smcinvoke.
+    # Do NOT create or chown /dev/keystore.
+
+# ==============================================================
+# Phase: fs
+# Purpose: Mount physical partitions required for recovery
+# ==============================================================
+on fs
+    # metadata: ext4 (verified from fstab.qcom)
+    # Required for FBE key directory at /metadata/vold/metadata_encryption
+    wait /dev/block/bootdevice/by-name/metadata 5
+    mount ext4 /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
+
+    # persist: ext4 (verified)
+    # Contains TEE persistent data, sensor calibration, MAC addresses
+    wait /dev/block/bootdevice/by-name/persist 5
+    mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
+
+on post-fs
+    # Compatibility symlink for services expecting /persist
+    symlink /mnt/vendor/persist /persist
+
+    # Directories required by qseecomd and keymint for TEE storage
+    mkdir /data/vendor 0771 root root
+    mkdir /data/vendor/tzstorage 0770 system system
+    mkdir /data/vendor/qsee 0770 system system
+    mkdir /data/misc 0771 system misc
+    mkdir /data/misc/keystore 0700 keystore keystore
+    mkdir /data/misc/gatekeeper 0700 system system
+
+    # tmpfs fallback for TEE if /data is not yet decrypted
+    mkdir /tmp/tzstorage 0770 system system
+
+# ==============================================================
+# Phase: boot
+# Purpose: Permissions, hardware setup, start services
+# ==============================================================
+on boot
+    # ---- Backlight ----
+    # Verified path and max: /sys/class/backlight/panel0-backlight/brightness
+    # Max brightness: 16383 (14-bit, OLED)
+    chown system system /sys/class/backlight/panel0-backlight/brightness
+    chmod 0660 /sys/class/backlight/panel0-backlight/brightness
+    chown system system /sys/class/backlight/panel0-backlight/max_brightness
+    chmod 0444 /sys/class/backlight/panel0-backlight/max_brightness
+
+    # ---- Flashlight (OrangeFox OF_FL_PATH1 / OF_FL_PATH2) ----
+    chown system system /sys/class/leds/white:flash-1/brightness
+    chmod 0666 /sys/class/leds/white:flash-1/brightness
+    chown system system /sys/class/leds/yellow:flash-0/brightness
+    chmod 0666 /sys/class/leds/yellow:flash-0/brightness
+
+    # ---- CPU thermal (TW_CUSTOM_CPU_TEMP_PATH) ----
+    chmod 0444 /sys/class/thermal/thermal_zone75/temp
+
+    # ---- Start decryption chain ----
+    # qseecomd → (vendor.sys.listeners.registered=true) → keymint + gatekeeper
+    start vendor.qseecomd

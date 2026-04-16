@@ -1,0 +1,25 @@
+# =============================================================================  
+# property_contexts  
+# SELinux labeling for system properties used in recovery  
+#  
+# Format (vendor sepolicy):  
+#   property_name    u:object_r:type:s0  
+#  
+# NOTE: The extended format with "exact bool" / "exact int" suffixes  
+# is ONLY valid in system/sepolicy/private/property_contexts.  
+# Vendor property_contexts uses the simple two-column format.  
+# Using extended format in vendor policy causes parse errors.  
+# =============================================================================  
+  
+# TEE / qseecomd completion property  
+# Verified: getprop vendor.sys.listeners.registered = true  
+vendor.sys.listeners.registered    u:object_r:vendor_default_prop:s0  
+  
+# Gatekeeper SPU level property  
+vendor.gatekeeper.is_security_level_spu    u:object_r:vendor_default_prop:s0  
+  
+# WiFi module loaded indicator  
+wifi.modules.loaded    u:object_r:default_prop:s0  
+  
+# Board platform identity  
+ro.boot.hardware.platform    u:object_r:default_prop:s0

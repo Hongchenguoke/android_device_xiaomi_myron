@@ -1,0 +1,26 @@
+# =============================================================================  
+# init.recovery.wifi.rc  
+# =============================================================================  
+
+on init
+    setprop wifi.interface wlan0
+
+on boot
+    mkdir /data/vendor/wifi 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi
+
+# ===========================================================
+# Service: wpa_supplicant (等待 UI 触发)
+# ===========================================================
+service wpa_supplicant /vendor/bin/hw/wpa_supplicant \
+    -O/data/vendor/wifi/wpa/sockets \
+    -iwlan0 \
+    -Dnl80211 \
+    -c/vendor/etc/wifi/wpa_supplicant.conf \
+    -g@android:wpa_wlan0
+    class late_start
+    user wifi
+    group wifi inet keystore
+    disabled
+    seclabel u:r:recovery:s0

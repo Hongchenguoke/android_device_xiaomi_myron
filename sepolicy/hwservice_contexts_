@@ -1,0 +1,15 @@
+# =============================================================================  
+# hwservice_contexts  
+# SELinux labeling for AIDL HAL service instances in recovery  
+#  
+# In permissive recovery mode, hwservice labeling does not affect  
+# access control. Using default_android_hwservice for all services  
+# ensures compilation succeeds without requiring type declarations  
+# for HAL-specific hwservice types (hal_keymint_hwservice, etc.).  
+#  
+# The previous version used specific types (hal_keymint_hwservice,  
+# hal_gatekeeper_hwservice) that were NOT declared anywhere,  
+# causing "unknown type" compilation errors.  
+# =============================================================================  
+  
+*    u:object_r:default_android_hwservice:s0

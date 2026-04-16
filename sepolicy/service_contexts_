@@ -1,0 +1,9 @@
+# =============================================================================  
+# service_contexts  
+# SELinux labeling for native binder services in recovery  
+#  
+# Wildcard: all services use default label.  
+# Permissive recovery mode allows all access regardless.  
+# =============================================================================  
+  
+*    u:object_r:default_android_service:s0

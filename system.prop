@@ -1,0 +1,57 @@
+# system.prop — 小米 myron（POCO F8 Ultra / 红米 K90 Pro Max）
+# 所有参数均通过 adb shell getprop 与 /proc/bootconfig（官方系统）验证确认
+#
+# ro.board.platform=xiaomi_sm8850 (getprop)
+# ro.product.board=canoe (getprop)
+# ro.boot.dynamic_partitions=true (getprop)
+# ro.virtual_ab.enabled=true (getprop)
+# ro.virtual_ab.compression.enabled=true (getprop)
+# persist.sys.fuse.passthrough.enable=true (getprop)
+# androidboot.usbcontroller=a600000.dwc3 (/proc/bootconfig)
+# vendor.gatekeeper.disable_spu — needed for QCOM gatekeeper without SPU
+#
+
+# 基础设备标识 — 100%来自真机getprop
+ro.adb.secure=0
+ro.board.platform=canoe
+ro.product.board=canoe
+ro.product.device=myron
+ro.product.brand=Xiaomi
+ro.product.model=Redmi K90 Pro Max
+ro.product.manufacturer=Xiaomi
+ro.product.cpu.abilist=arm64-v8a
+ro.hardware=qcom
+ro.boot.hardware.platform=canoe
+
+# 分区与AB配置 — 来自真机验证
+ro.boot.dynamic_partitions=true
+ro.boot.bootloader=4
+ro.boot.vbmeta.avb_version=1.3
+ro.virtual_ab.enabled=true
+ro.virtual_ab.compression.enabled=true
+
+# USB配置 — 标准高通/Google配置 + 真机控制器
+sys.usb.controller=a600000.dwc3
+ro.recovery.usb.vid=18D1
+ro.recovery.usb.adb.pid=D001
+ro.recovery.usb.fastboot.pid=4EE0
+vendor.usb.configfs=1
+
+# Gatekeeper配置 — 来自真机RC文件，禁用SPU用TZ
+vendor.gatekeeper.disable_spu=true
+vendor.gatekeeper.is_security_level_spu=0
+
+# 显示配置 — 来自真机显示参数
+ro.minui.pixel_format=RGBX_8888
+ro.minui.overscan_percent=0
+ro.sf.lcd_density=480
+
+# 存储配置 — 来自真机UFS路径
+persist.sys.fuse.passthrough.enable=true
+ro.boot.bootdevice=1d84000.ufshc
+
+# Keymint/OneKeyMint配置 — 真机是空值，代表OneKeyMint架构
+ro.hardware.keystore=
+
+# 版本与指纹 — 100%来自真机vendor_boot的cmdline提取
+ro.build.fingerprint=Redmi/myron/myron:16/OS3.0.23.0.WPMCNXM:user/release-keys

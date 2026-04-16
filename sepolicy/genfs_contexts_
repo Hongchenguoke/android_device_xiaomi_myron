@@ -1,0 +1,33 @@
+# =============================================================================  
+# genfs_contexts  
+# Filesystem labeling for pseudo-filesystems (proc, sysfs, configfs)  
+#  
+# genfscon uses AOSP-defined types only (sysfs, proc).  
+# These do NOT trigger neverallow violations because genfscon  
+# is a labeling mechanism, not an access grant.  
+# =============================================================================  
+  
+# Sysfs — UFS storage controller  
+genfscon sysfs /devices/platform/soc/1d84000.ufshc               u:object_r:sysfs:s0  
+  
+# Sysfs — Backlight  
+genfscon sysfs /class/backlight/panel0-backlight                  u:object_r:sysfs:s0  
+  
+# Sysfs — LEDs  
+genfscon sysfs /class/leds                                        u:object_r:sysfs:s0  
+  
+# Sysfs — Thermal  
+genfscon sysfs /class/thermal                                     u:object_r:sysfs:s0  
+  
+# Sysfs — Power supply  
+genfscon sysfs /class/power_supply                                u:object_r:sysfs:s0  
+  
+# Sysfs — USB controller (a600000.dwc3)  
+genfscon sysfs /devices/platform/soc/a600000.dwc3                 u:object_r:sysfs:s0  
+genfscon sysfs /class/udc/a600000.dwc3                            u:object_r:sysfs:s0  
+  
+# Proc — kernel module disable flag  
+genfscon proc /sys/kernel/modules_disabled                        u:object_r:proc:s0  
+  
+# Proc — kernel hotplug  
+genfscon proc /sys/kernel/hotplug                                 u:object_r:proc:s0

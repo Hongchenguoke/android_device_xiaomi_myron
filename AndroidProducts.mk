@@ -1,0 +1,11 @@
+# =============================================================================
+# Copyright (C) 2026 OrangeFox Recovery Project
+# SPDX-License-Identifier: Apache-2.0
+# =============================================================================
+
+PRODUCT_MAKEFILES := \
+    $(LOCAL_PATH)/twrp_myron.mk
+
+COMMON_LUNCH_CHOICES := \
+    twrp_myron-ap2a-eng \
+    twrp_myron-ap2a-userdebug

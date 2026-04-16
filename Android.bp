@@ -1,0 +1,13 @@
+# Copyright (C) 2026 The Android Open Source Project
+#
+# This is a recovery-only device tree. The Soong build rules
+# are minimal. All vendor binaries and libraries are pre-extracted
+# from the actual device in vendor partitions; the recovery ramdisk
+# does not need them.
+#
+# This file registers the device directory as a Soong namespace
+# so that twrp_myron.mk can reference it.
+
+soong_namespace {
+    imports: [],
+}

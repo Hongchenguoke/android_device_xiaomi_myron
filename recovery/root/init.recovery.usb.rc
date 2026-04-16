@@ -1,0 +1,77 @@
+# =============================================================================  
+# init.recovery.usb.rc  
+# USB gadget configuration for ADB and fastbootd in recovery  
+#  
+# Verified from device:  
+#   ls /sys/class/udc/ → a600000.dwc3  
+#   getprop sys.usb.controller → a600000.dwc3  
+# =============================================================================  
+
+on init
+    # ---- USB controller ----
+    # Verified: a600000.dwc3 (DWC3 USB3 controller on Canoe/SM8750)
+    setprop sys.usb.controller "a600000.dwc3"
+
+    # USB configfs mode
+    setprop sys.usb.configfs 1
+    setprop sys.usb.ffs.ready 0
+
+    # ---- Configfs gadget scaffold ----
+    mkdir /config/usb_gadget/g1 0770 shell shell
+
+    # Gadget identity (Google VID:PID for universal ADB driver compat)
+    write /config/usb_gadget/g1/idVendor 0x18D1
+    write /config/usb_gadget/g1/idProduct 0xD001
+
+    mkdir /config/usb_gadget/g1/strings/0x409 0770 shell shell
+    write /config/usb_gadget/g1/strings/0x409/serialnumber ${ro.serialno}
+    write /config/usb_gadget/g1/strings/0x409/manufacturer "Xiaomi"
+    write /config/usb_gadget/g1/strings/0x409/product "Myron Recovery"
+
+    # ---- ADB function (FunctionFS) ----
+    mkdir /config/usb_gadget/g1/functions/ffs.adb
+    mkdir /dev/usb-ffs 0770 shell shell
+    mkdir /dev/usb-ffs/adb 0770 shell shell
+    mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=2000,rmode=0770,fmode=0660,no_disconnect=1
+
+    # ---- Fastboot function (FunctionFS) ----
+    mkdir /config/usb_gadget/g1/functions/ffs.fastboot
+    mkdir /dev/usb-ffs/fastboot 0770 system system
+    mount functionfs fastboot /dev/usb-ffs/fastboot rmode=0770,fmode=0660
+
+    # ---- Configuration ----
+    mkdir /config/usb_gadget/g1/configs/b.1 0770 shell shell
+    mkdir /config/usb_gadget/g1/configs/b.1/strings/0x409 0770 shell shell
+    write /config/usb_gadget/g1/os_desc/use 1
+    write /config/usb_gadget/g1/os_desc/b_vendor_code 0x1
+    write /config/usb_gadget/g1/os_desc/qw_sign "MSFT100"
+
+# ===========================================================
+# USB state: ADB mode
+# ===========================================================
+on property:sys.usb.config=adb && property:sys.usb.configfs=1
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "adb"
+    symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f1
+    write /config/usb_gadget/g1/UDC "a600000.dwc3"
+    setprop sys.usb.state ${sys.usb.config}
+
+on property:sys.usb.ffs.ready=1 && property:sys.usb.config=adb && property:sys.usb.configfs=1
+    write /config/usb_gadget/g1/UDC "a600000.dwc3"
+    setprop sys.usb.state ${sys.usb.config}
+
+# ===========================================================
+# USB state: Fastbootd mode
+# Required for dynamic partition flashing
+# ===========================================================
+on property:sys.usb.config=fastboot && property:sys.usb.configfs=1
+    write /config/usb_gadget/g1/configs/b.1/strings/0x409/configuration "fastboot"
+    symlink /config/usb_gadget/g1/functions/ffs.fastboot /config/usb_gadget/g1/configs/b.1/f1
+    write /config/usb_gadget/g1/UDC "a600000.dwc3"
+    setprop sys.usb.state ${sys.usb.config}
+
+# ===========================================================
+# USB state: Disconnect
+# ===========================================================
+on property:sys.usb.config=none && property:sys.usb.configfs=1
+    write /config/usb_gadget/g1/UDC ""
+    setprop sys.usb.state ${sys.usb.config}
