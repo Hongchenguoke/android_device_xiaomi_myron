@@ -249,6 +249,7 @@ TW_CRYPTO_USE_VENDOR_KEYMINT            := true
 TW_KEYMINT_CLIENT_CONNECT_TIMEOUT       := 4000
 # android.hardware.keymaster@4.0-service-qti EXISTS (ls confirmed) — keep flag
 OF_NO_KEYMASTER_VER_4X                  := 1
+OF_DEFAULT_KEYMASTER_VERSION            := 4.1
 
 # Security patch bypass — confirmed: fastboot version-os=99.87.36
 PLATFORM_VERSION                        := 99.87.36
