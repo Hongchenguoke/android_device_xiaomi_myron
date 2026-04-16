@@ -46,6 +46,7 @@ jobs:
           echo EOF
         } >> "$GITHUB_ENV"
         echo "BUILD_DATE=$(date +%F)" >> "$GITHUB_ENV"
+
     - name: Cleanup
       uses: rokibhasansagar/slimhub_actions@main
 
@@ -73,6 +74,7 @@ jobs:
         sudo sed -i 's/^#PRIORITY=100/PRIORITY=1000/' /etc/default/zramswap
         sudo systemctl restart zramswap
         zramctl
+
     - name: Setup build environment
       run: |
         export DEBIAN_FRONTEND=noninteractive
@@ -87,6 +89,7 @@ jobs:
           squashfs-tools xsltproc zip zlib1g-dev repo lz4
         git config --global user.name "${{ github.actor }}"
         git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+
     # ── Sync OrangeFox 14.1 source ─────────────────────────────────────────────
     - name: Sync OrangeFox 14.1 source
       run: |
@@ -98,19 +101,7 @@ jobs:
         [ -d bootable/recovery ] || { echo "ERROR: bootable/recovery missing!"; exit 1; }
         [ -d vendor/twrp ]       || { echo "ERROR: vendor/twrp missing!"; exit 1; }
         echo "Sync OK"
-    # ── Sync external/guava ───────────────────────────────────────────────────
-    # unsupportedappusage-annotation-processor-lib needs guava classes at compile
-    # time. OrangeFox manifest does NOT sync external/guava, so we pull it from
-    # AOSP master explicitly to satisfy the platform-compat build dependency.
-    - name: Sync external/guava
-      run: |
-        if [ ! -d "external/guava" ]; then
-          git clone https://android.googlesource.com/platform/external/guava \
-            --depth=1 external/guava
-          echo "guava cloned OK"
-        else
-          echo "external/guava already exists, skipping"
-        fi
+
     # ── Clone device tree ──────────────────────────────────────────────────────
     - name: Setup device tree
       run: |
@@ -118,6 +109,7 @@ jobs:
           -b "${{ github.event.inputs.DEVICE_TREE_BRANCH }}" \
           --depth=1 \
           "device/${{ github.event.inputs.DEVICE_PATH }}"
+
     # ── Fix OFox 14.1 build bugs ───────────────────────────────────────────────
     - name: Fix OFox 14.1 build bugs
       run: |
@@ -125,6 +117,7 @@ jobs:
         rm -rf bionic
         git clone https://github.com/adontoo/OrangeFox-android_platform_bionic \
           --depth=1 bionic
+
     # ── Download Magisk 37 ─────────────────────────────────────────────────────
     - name: Download Magisk
       run: |
@@ -145,6 +138,7 @@ jobs:
           || echo "Magisk download FAILED (non-fatal)"
         }
         ls -lh /tmp/misc/Magisk.zip 2>/dev/null || echo "No Magisk zip"
+
     # ── Generate build info ────────────────────────────────────────────────────
     - name: Generate build info
       working-directory: device/${{ github.event.inputs.DEVICE_PATH }}
@@ -161,6 +155,7 @@ jobs:
           fi
         } > INFO.txt
         cat INFO.txt
+
     # ── Build OrangeFox ────────────────────────────────────────────────────────
     # FIX 1: unset PRODUCT_SOURCE_ROOT_DIRS *trước* envsetup.sh để Soong
     # FIX 2: OFox 14.1 bắt buộc format 3 phần <product>-<release>-<variant>
@@ -170,7 +165,9 @@ jobs:
         # FIX: phải unset trước khi source envsetup để Soong scan đủ namespace
         unset PRODUCT_SOURCE_ROOT_DIRS
         export PRODUCT_SOURCE_ROOT_DIRS=""
+
         source build/envsetup.sh
+
         export ALLOW_MISSING_DEPENDENCIES=true
         export BUILD_BROKEN_DUP_RULES=true
         export BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES=true
@@ -180,44 +177,40 @@ jobs:
         export CCACHE_MAXSIZE=5G
         export USE_CCACHE=1
         export LC_ALL=C
+
         # Magisk path
         export OF_MAGISK="/tmp/misc/Magisk.zip"
         export FOX_USE_SPECIFIC_MAGISK_ZIP="/tmp/misc/Magisk.zip"
+
         # Dùng ap2a theo workflow tham khảo của adontoo (đã verified build OK)
         # Fallback ap3a → trunk_staging nếu ap2a không có
         DEVICE="${{ github.event.inputs.DEVICE_NAME }}"
         LUNCH_OK=0
+
         for RELEASE in "ap2a" "ap3a" "trunk_staging" "trunk"; do
           COMBO="twrp_${DEVICE}-${RELEASE}-eng"
           echo "Trying lunch combo: $COMBO"
-          lunch "$COMBO" && { LUNCH_OK=1; echo "lunch OK: $COMBO"; break; }
+          lunch "$COMBO" 2>/dev/null && { LUNCH_OK=1; echo "lunch OK: $COMBO"; break; }
         done
+
         if [ "$LUNCH_OK" -eq 0 ]; then
           echo "ERROR: No valid lunch combo found! Dumping available combos:"
           lunch 2>&1 | grep "twrp_" | head -20 || true
           exit 1
         fi
-        # FIX: recovery/root/odm/{bin,etc,lib64} — build system creates symlinks
-        # under out/.../root/odm pointing to /odm/*, but device tree ships real
-        # directories with files. rsync fails when it tries to replace the
-        # symlinks with directories. Remove them before build so the device-tree
-        # directories win.
-        for SUBDIR in bin etc lib64; do
-          LINK="out/target/product/${DEVICE}/root/odm/${SUBDIR}"
-          if [ -L "$LINK" ]; then
-            echo "Removing conflicting symlink: ${LINK}"
-            rm -f "$LINK"
-          fi
-        done
+
         # Progress monitor
         (while true; do
           echo "$(date +%T) | Building... | RAM: $(free -h | awk '/^Mem/{print $3"/"$2}')"
           sleep 60
         done) &
         MONITOR_PID=$!
+
         mka adbd "${{ github.event.inputs.BUILD_PARTITION }}image" 2>&1 | tee /tmp/build.log
         BUILD_STATUS=${PIPESTATUS[0]}
+
         kill "$MONITOR_PID" 2>/dev/null || true
+
         if [ "$BUILD_STATUS" -ne 0 ]; then
           echo ""
           echo "══════════════════════════════════════"
@@ -226,12 +219,14 @@ jobs:
           tail -150 /tmp/build.log
           exit 1
         fi
+
         # Rename output
         OUT_DIR="out/target/product/${DEVICE}"
         IMG_NAME="OrangeFox-14.1-${DEVICE}-${{ env.BUILD_DATE }}.img"
         mv "${OUT_DIR}/${{ github.event.inputs.BUILD_PARTITION }}.img" "${OUT_DIR}/${IMG_NAME}"
         echo "Build success!"
         ls -lh "${OUT_DIR}/${IMG_NAME}"
+
     # ── Upload build log (always) ──────────────────────────────────────────────
     - name: Upload build log
       if: always()
