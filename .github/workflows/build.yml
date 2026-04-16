@@ -190,7 +190,7 @@ jobs:
         for RELEASE in "ap2a" "ap3a" "trunk_staging" "trunk"; do
           COMBO="twrp_${DEVICE}-${RELEASE}-eng"
           echo "Trying lunch combo: $COMBO"
-          lunch "$COMBO" 2>/dev/null && { LUNCH_OK=1; echo "lunch OK: $COMBO"; break; }
+          lunch "$COMBO" && { LUNCH_OK=1; echo "lunch OK: $COMBO"; break; }
         done
 
         if [ "$LUNCH_OK" -eq 0 ]; then
