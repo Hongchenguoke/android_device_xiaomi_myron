@@ -206,7 +206,7 @@ BOARD_MI_EXTIMAGE_FILE_SYSTEM_TYPE       := erofs
 TARGET_COPY_OUT_MI_EXT                   := mi_ext
 
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE     := f2fs
-BOARD_METADATAIMAGE_FILE_SYSTEM_TYPE     := ext4
+BOARD_METADATAIMAGE_FILE_SYSTEM_TYPE     := f2fs
 
 TARGET_USERIMAGES_USE_F2FS               := true
 TARGET_USERIMAGES_USE_EXT4               := true
@@ -328,7 +328,6 @@ RECOVERY_SDCARD_ON_DATA                 := true
 TW_INCLUDE_FUSE_EXFAT                   := true
 TW_INCLUDE_FUSE_NTFS                    := true
 TW_INCLUDE_NTFS_3G                      := true
-TW_NO_EXFAT_FUSE                        := true
 TW_ENABLE_FS_COMPRESSION                := true
 
 # ─────────────────────────────────────────────────────────
