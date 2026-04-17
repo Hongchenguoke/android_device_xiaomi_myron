@@ -29,10 +29,10 @@ type qseecom_dma_heap_device, dev_type;
 type persist_file, file_type;
 
 # 固件文件类型（/vendor/firmware_mnt/image/ - TEE 固件）
-type firmware_file, file_type, fs_type;
+type firmware_file, file_type;
 
 # Keystore 数据文件类型（加密元数据存储）
-type keystore_data_file, file_type, data_file_type;
+type keystore_data_file, file_type;
 
 # 将 recovery 域设为 permissive
 # 若 AOSP base policy 已声明，此语句重复但无害（permissive 允许累加）
