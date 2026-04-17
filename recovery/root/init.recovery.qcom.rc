@@ -92,14 +92,14 @@ on init
 
     # DMA heap 节点: qseecomd 进行 TEE 内存分配所需
     # 关键: 真机权限为 0444 (O_RDONLY + ioctl)。切勿改为 0660。
-    chown root root /dev/dma_heap/qcom,qseecom
-    chown root root /dev/dma_heap/qcom,qseecom-ta
-    chown root root /dev/dma_heap/qcom,secure-non-pixel
-    chown root root /dev/dma_heap/qcom,secure-pixel
-    chmod 0444 /dev/dma_heap/qcom,qseecom
-    chmod 0444 /dev/dma_heap/qcom,qseecom-ta
-    chmod 0444 /dev/dma_heap/qcom,secure-non-pixel
-    chmod 0444 /dev/dma_heap/qcom,secure-pixel
+    chown root root "/dev/dma_heap/qcom,qseecom"
+    chown root root "/dev/dma_heap/qcom,qseecom-ta"
+    chown root root "/dev/dma_heap/qcom,secure-non-pixel"
+    chown root root "/dev/dma_heap/qcom,secure-pixel"
+    chmod 0444 "/dev/dma_heap/qcom,qseecom"
+    chmod 0444 "/dev/dma_heap/qcom,qseecom-ta"
+    chmod 0444 "/dev/dma_heap/qcom,secure-non-pixel"
+    chmod 0444 "/dev/dma_heap/qcom,secure-pixel"
 
     # 注意: /dev/keystore 在 Android 16 OneKeyMint 上不存在。
 
