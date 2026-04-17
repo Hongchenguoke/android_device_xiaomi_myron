@@ -1,15 +1,20 @@
 ﻿# =============================================================================
 # init.recovery.qcom.rc
-# 閫氳繃 ro.hardware=qcom 鐢?Android init 鑷姩瀵煎叆
+# 通过 ro.hardware=qcom 由 Android init 自动导入
 #
-# 璁惧:   Xiaomi Myron (绾㈢背 K90 Pro Max)
-# 骞冲彴:   Canoe (Snapdragon 8 Elite) / Android 16 / GKI 2.0
+# 设备:   Xiaomi Myron (红米 K90 Pro Max)
+# 平台:   Canoe (Snapdragon 8 Elite) / Android 16 / GKI 2.0
 # Recovery: OrangeFox fox-14.1
 #
-# 鍏抽敭楠岃瘉浜嬪疄:
-#   - /dev/qseecom: 涓嶅瓨鍦ㄣ€傚垏鍕垮鍏舵墽琛?wait/chown/chmod銆?#   - TEE 閫氫俊: /dev/spcom + smcinvoke_dlkm.ko
-#   - DMA heap: 0444 (O_RDONLY + ioctl)銆傚垏鍕挎敼涓?0660銆?#   - qseecomd 灏辩华淇″彿: vendor.sys.listeners.registered=true
-#   - vendor.sys.qseecomd.loaded / vendor.sys.keymaster.loaded: 姘镐笉璁剧疆銆?#   - ssgtzd: 鏂囦欢涓嶅瓨鍦ㄣ€?#   - 鎵€鏈?HAL service 涓ョ浣跨敤 oneshot锛坥neshot 浼氬鑷?binder 娉ㄥ唽鍚庤繘绋嬬珛鍗宠嚜鏉€锛?# =============================================================================
+# 关键验证事实:
+#   - /dev/qseecom: 不存在。切勿对其执行 wait/chown/chmod。
+#   - TEE 通信: /dev/spcom + smcinvoke_dlkm.ko
+#   - DMA heap: 0444 (O_RDONLY + ioctl)。切勿改为 0660。
+#   - qseecomd 就绪信号: vendor.sys.listeners.registered=true
+#   - vendor.sys.qseecomd.loaded / vendor.sys.keymaster.loaded: 永不设置。
+#   - ssgtzd: 文件不存在。
+#   - 所有 HAL service 严禁使用 oneshot（oneshot 会导致 binder 注册后进程立即自杀）
+# =============================================================================
 
 import /init.recovery.usb.rc
 import /init.recovery.logd.rc
@@ -18,52 +23,57 @@ import /init.recovery.ldconfig.rc
 import /init.recovery.wifi.rc
 
 # ==============================================================
-# early-init 闃舵
+# early-init 阶段
 # ==============================================================
 on early-init
     setprop ro.boot.mode "recovery"
 
-    # 鍏佽鍔犺浇鍐呮牳妯″潡
+    # 允许加载内核模块
     write /proc/sys/kernel/modules_disabled 0
 
-    # 绂佺敤鍐呮牳鐑彃鎷斿姪鎵嬶紙鐢?recovery 鑷澶勭悊 uevent锛?    write /proc/sys/kernel/hotplug ""
+    # 禁用内核热插拔助手（由 recovery 自行处理 uevent）
+    write /proc/sys/kernel/hotplug ""
 
 # ==============================================================
-# init 闃舵锛氱‖浠跺垵濮嬪寲 鈥?妯″潡銆佽澶囪妭鐐广€佸睘鎬?# ==============================================================
+# init 阶段：硬件初始化 — 模块、设备节点、属性
+# ==============================================================
 on init
-    # ---- 骞冲彴鏍囪瘑 ----
+    # ---- 平台标识 ----
     setprop ro.hardware qcom
     setprop ro.board.platform canoe
     setprop ro.boot.hardware.platform canoe
 
-    # ---- 鐩綍楠ㄦ灦 ----
+    # ---- 目录骨架 ----
     mkdir /config 0755 root root
     mkdir /mnt/vendor 0755 root root
     mkdir /mnt/vendor/persist 0755 root root
     mkdir /metadata 0771 root root
 
-    # ---- UFS 鎺у埗鍣ㄥ氨缁?----
+    # ---- UFS 控制器就绪 ----
     # UFS sysfs_path: /sys/devices/platform/soc/1d84000.ufshc
     wait /dev/block/platform/soc/1d84000.ufshc 5
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
 
     # ===========================================================
-    # 鍐呮牳妯″潡鍔犺浇锛堥『搴忓凡楠岃瘉锛?    # 鎵€鏈?.ko 鏂囦欢蹇呴』棰勫厛浠?vendor_dlkm 鎻愬彇鍒?    # recovery ramdisk 鐨?/vendor/lib/modules/ 鐩綍涓?    # ===========================================================
+    # 内核模块加载（顺序已验证）
+    # 所有 .ko 文件必须预先从 vendor_dlkm 提取到
+    # recovery ramdisk 的 /vendor/lib/modules/ 目录下
+    # ===========================================================
 
-    # 闃舵 1: TEE (Android 16 涓?smcinvoke 鏇夸唬浜?/dev/qseecom)
+    # 阶段 1: TEE (Android 16 上 smcinvoke 替代了 /dev/qseecom)
     insmod /vendor/lib/modules/smcinvoke_dlkm.ko
     insmod /vendor/lib/modules/mitee_dlkm.ko
     insmod /vendor/lib/modules/tmecom-intf_dlkm.ko
     insmod /vendor/lib/modules/tz_log_dlkm.ko
 
-    # 闃舵 2: 瑙︽懜灞忎緷璧栭摼
+    # 阶段 2: 触摸屏依赖链
     # panel_event_notifier -> xiaomi_touch -> gh_irq_lend -> focaltech
     insmod /vendor/lib/modules/panel_event_notifier.ko
     insmod /vendor/lib/modules/xiaomi_touch.ko
     insmod /vendor/lib/modules/gh_irq_lend.ko
     insmod /vendor/lib/modules/focaltech_touch_3683.ko
 
-    # 闃舵 3: 鏄剧ず (渚濊禆涓婃柟宸插姞杞界殑 panel_event_notifier)
+    # 阶段 3: 显示 (依赖上方已加载的 panel_event_notifier)
     insmod /vendor/lib/modules/sync_fence.ko
     insmod /vendor/lib/modules/msm_hw_fence.ko
     insmod /vendor/lib/modules/drm_display_helper.ko
@@ -71,16 +81,18 @@ on init
     insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko
     insmod /vendor/lib/modules/msm_drm.ko
 
-    # ---- TEE 璁惧鑺傜偣鏉冮檺锛堝熀浜庣湡鏈洪獙璇侊級 ----
-    # 娉ㄦ剰: /dev/qseecom 鍦?Android 16 涓婁笉瀛樺湪銆傚垏鍕挎搷浣滃畠銆?
-    # /dev/spcom: 瀹夊叏澶勭悊鍣ㄩ€氫俊 (鏇夸唬 /dev/qseecom)
-    # 鐪熸満楠岃瘉: system:system 0660
+    # ---- TEE 设备节点权限（基于真机验证） ----
+    # 注意: /dev/qseecom 在 Android 16 上不存在。切勿操作它。
+
+    # /dev/spcom: 安全处理器通信 (替代 /dev/qseecom)
+    # 真机验证: system:system 0660
     wait /dev/spcom 2
     chown system system /dev/spcom
     chmod 0660 /dev/spcom
 
-    # DMA heap 鑺傜偣: qseecomd 杩涜 TEE 鍐呭瓨鍒嗛厤鎵€闇€
-    # 鍏抽敭: 鐪熸満鏉冮檺涓?0444 (O_RDONLY + ioctl)銆傚垏鍕挎敼涓?0660銆?    chown root root /dev/dma_heap/qcom,qseecom
+    # DMA heap 节点: qseecomd 进行 TEE 内存分配所需
+    # 关键: 真机权限为 0444 (O_RDONLY + ioctl)。切勿改为 0660。
+    chown root root /dev/dma_heap/qcom,qseecom
     chown root root /dev/dma_heap/qcom,qseecom-ta
     chown root root /dev/dma_heap/qcom,secure-non-pixel
     chown root root /dev/dma_heap/qcom,secure-pixel
@@ -89,62 +101,69 @@ on init
     chmod 0444 /dev/dma_heap/qcom,secure-non-pixel
     chmod 0444 /dev/dma_heap/qcom,secure-pixel
 
-    # 娉ㄦ剰: /dev/keystore 鍦?Android 16 OneKeyMint 涓婁笉瀛樺湪銆?
-    # ---- 妯″潡涓庤妭鐐瑰氨缁悗绔嬪嵆鍚姩 TEE 瀹堟姢杩涚▼ ----
+    # 注意: /dev/keystore 在 Android 16 OneKeyMint 上不存在。
+
+    # ---- 模块与节点就绪后立即启动 TEE 守护进程 ----
     start vendor.qseecomd
 
 # ==============================================================
-# fs 闃舵锛氭寕杞?recovery 鎵€闇€鐨勭墿鐞嗗垎鍖?# ==============================================================
+# fs 阶段：挂载 recovery 所需的物理分区
+# ==============================================================
 on fs
-    # metadata: 鐪熸満楠岃瘉涓?f2fs锛屼絾 recovery.fstab 浣跨敤 ext4 浣滀负鍏煎 fallback
-    # 鑻ュ疄闄呬负 f2fs 涓?mount 澶辫触锛岃灏嗘琛屾敼涓?mount f2fs ...
+    # metadata: 真机验证为 f2fs，但 recovery.fstab 使用 ext4 作为兼容 fallback
+    # 若实际为 f2fs 且 mount 失败，请将此行改为 mount f2fs ...
     wait /dev/block/bootdevice/by-name/metadata 5
     mount f2fs /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
 
-    # persist: ext4 (宸查獙璇?
+    # persist: ext4 (已验证)
     wait /dev/block/bootdevice/by-name/persist 5
     mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
 
 on post-fs
-    # 鎵ц鏈哄瀷涓撳睘閰嶇疆锛堣缃瀷鍙枫€乀WRP 鍋忕Щ銆佸鍒?NXP 搴?鍥轰欢锛?    exec /sbin/sh /sbin/myron_variant.sh
+    # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
+    exec /sbin/sh /sbin/myron_variant.sh
 
-    # 涓烘湡鏈?/persist 鐨勬湇鍔″垱寤哄吋瀹规€х鍙烽摼鎺?    symlink /mnt/vendor/persist /persist
+    # 为期望 /persist 的服务创建兼容性符号链接
+    symlink /mnt/vendor/persist /persist
 
-    # qseecomd 鍜?keymint TEE 瀛樺偍鎵€闇€鐨勭洰褰?    mkdir /data/vendor 0771 root root
+    # qseecomd 和 keymint TEE 存储所需的目录
+    mkdir /data/vendor 0771 root root
     mkdir /data/vendor/tzstorage 0770 system system
     mkdir /data/vendor/qsee 0770 system system
     mkdir /data/misc 0771 system system
     mkdir /data/misc/keystore 0700 system system
     mkdir /data/misc/gatekeeper 0700 system system
 
-    # 鑻?/data 灏氭湭瑙ｅ瘑锛屼负 TEE 鎻愪緵 tmpfs 鍚庡
+    # 若 /data 尚未解密，为 TEE 提供 tmpfs 后备
     mkdir /tmp/tzstorage 0770 system system
 
 # ==============================================================
-# boot 闃舵锛氭潈闄愯缃€佺‖浠堕厤缃?# ==============================================================
+# boot 阶段：权限设置、硬件配置
+# ==============================================================
 on boot
-    # ---- 鑳屽厜 ----
+    # ---- 背光 ----
     chown root root /sys/class/backlight/panel0-backlight/brightness
     chmod 0666 /sys/class/backlight/panel0-backlight/brightness
     chown root root /sys/class/backlight/panel0-backlight/max_brightness
     chmod 0444 /sys/class/backlight/panel0-backlight/max_brightness
 
-    # ---- 鎵嬬數绛?(OrangeFox OF_FL_PATH1 / OF_FL_PATH2) ----
+    # ---- 手电筒 (OrangeFox OF_FL_PATH1 / OF_FL_PATH2) ----
     chown root root /sys/class/leds/white:flash-1/brightness
     chmod 0666 /sys/class/leds/white:flash-1/brightness
     chown root root /sys/class/leds/yellow:flash-0/brightness
     chmod 0666 /sys/class/leds/yellow:flash-0/brightness
 
-    # ---- CPU 娓╁害 (TW_CUSTOM_CPU_TEMP_PATH) ----
+    # ---- CPU 温度 (TW_CUSTOM_CPU_TEMP_PATH) ----
     chmod 0444 /sys/class/thermal/thermal_zone45/temp
 
 # ==============================================================
-# 瑙ｅ瘑鏈嶅姟 (Android 16 OneKeyMint + Rust Gatekeeper)
-# 娉ㄦ剰锛氭墍鏈?HAL service 涓ョ浣跨敤 oneshot
-# oneshot 浼氬鑷磋繘绋嬪湪娉ㄥ唽 binder 鍚庣珛鍗抽€€鍑猴紝瑙ｅ瘑閾炬柇瑁傘€?# ==============================================================
+# 解密服务 (Android 16 OneKeyMint + Rust Gatekeeper)
+# 注意：所有 HAL service 严禁使用 oneshot
+# oneshot 会导致进程在注册 binder 后立即退出，解密链断裂。
+# ==============================================================
 
-# 1. qseecomd: TEE 瀹堟姢杩涚▼
-# 鐪熸満楠岃瘉: class core, socket notify-topology, user=root
+# 1. qseecomd: TEE 守护进程
+# 真机验证: class core, socket notify-topology, user=root
 service vendor.qseecomd /vendor/bin/qseecomd
     socket notify-topology stream 660 system drmrpc
     class core
@@ -153,8 +172,8 @@ service vendor.qseecomd /vendor/bin/qseecomd
     disabled
     seclabel u:r:recovery:s0
 
-# 2. OneKeyMint: 涓诲瘑閽ョ鐞?(AIDL)
-# 鐪熸満楠岃瘉: class early_hal, user=system, group=system drmrpc
+# 2. OneKeyMint: 主密钥管理 (AIDL)
+# 真机验证: class early_hal, user=system, group=system drmrpc
 service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
     class early_hal
     user system
@@ -162,8 +181,8 @@ service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-servi
     disabled
     seclabel u:r:recovery:s0
 
-# 3. NXP StrongBox: 纭欢瀹夊叏妯″潡
-# Recovery 涓笉瀛樺湪 vendor_nxp_strongbox 鐢ㄦ埛锛岄檷绾т负 root
+# 3. NXP StrongBox: 硬件安全模块
+# Recovery 中不存在 vendor_nxp_strongbox 用户，降级为 root
 service vendor.keymint.strongbox /odm/bin/hw/android.hardware.security.keymint3-service.strongbox.nxp
     class early_hal
     user root
@@ -171,9 +190,9 @@ service vendor.keymint.strongbox /odm/bin/hw/android.hardware.security.keymint3-
     disabled
     seclabel u:r:recovery:s0
 
-# 4. Rust Gatekeeper: 瀵嗙爜楠岃瘉
-# 鐪熸満楠岃瘉: class early_hal, user=system, group=system
-# 鏈嶅姟鍚嶄娇鐢ㄧ湡鏈哄師鏍?vendor.gatekeeper_default
+# 4. Rust Gatekeeper: 密码验证
+# 真机验证: class early_hal, user=system, group=system
+# 服务名使用真机原样 vendor.gatekeeper_default
 service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
     class early_hal
     user system
@@ -181,9 +200,9 @@ service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rus
     disabled
     seclabel u:r:recovery:s0
 
-# 5. NXP Weaver: 杈呭姪瀵嗛挜瀛樺偍
-# Recovery 涓笉瀛樺湪 vendor_nxp_weaver 鐢ㄦ埛锛岄檷绾т负 root
-# 鐪熸満楠岃瘉鏈嶅姟鍚? vendor.weaver_nxp
+# 5. NXP Weaver: 辅助密钥存储
+# Recovery 中不存在 vendor_nxp_weaver 用户，降级为 root
+# 真机验证服务名: vendor.weaver_nxp
 service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
     class early_hal
     user root
@@ -192,14 +211,20 @@ service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
     seclabel u:r:recovery:s0
 
 # ==============================================================
-# 瑙ｅ瘑閾捐Е鍙戝櫒
+# 解密链触发器
 #
-# 鍏抽敭: 浠呬娇鐢?vendor.sys.listeners.registered=true銆?# 鍒囧嬁浣跨敤 vendor.sys.qseecomd.loaded 鎴?vendor.sys.keymaster.loaded
-# 鈥?杩欎袱涓睘鎬у湪鏈 Android 16 鏋勫缓涓粠鏈璁剧疆銆?#
-# 娉ㄦ剰: 涓嶈鍦?exec_background 鐨?shell 涓皟鐢?start 鍛戒护锛?# start 鏄?init 鍐呯疆鍏抽敭瀛楋紝鍦?/system/bin/sh 涓笉瀛樺湪銆?# 鎵€鏈?start 鍛戒护蹇呴』鍦?init 鑴氭湰鏈綋涓墽琛屻€?# ==============================================================
+# 关键: 仅使用 vendor.sys.listeners.registered=true。
+# 切勿使用 vendor.sys.qseecomd.loaded 或 vendor.sys.keymaster.loaded
+# — 这两个属性在本次 Android 16 构建中从未被设置。
+#
+# 注意: 不要在 exec_background 的 shell 中调用 start 命令，
+# start 是 init 内置关键字，在 /system/bin/sh 中不存在。
+# 所有 start 命令必须在 init 脚本本体中执行。
+# ==============================================================
 
 on property:vendor.sys.listeners.registered=true
-    # 鐩存帴椤哄簭鍚姩锛屾棤闇€寤惰繜銆侶AL 涔嬮棿鐨勪緷璧栧湪璋冪敤鏃跺彂鐢燂紝涓嶅湪鍚姩鏃躲€?    start vendor.keymint
+    # 直接顺序启动，无需延迟。HAL 之间的依赖在调用时发生，不在启动时。
+    start vendor.keymint
     start vendor.keymint.strongbox
     start vendor.weaver_nxp
     start vendor.gatekeeper_default
@@ -207,7 +232,8 @@ on property:vendor.sys.listeners.registered=true
     echo I: [Recovery] crypto.ready=1 > /dev/kmsg
 
 # ==============================================================
-# 璋冭瘯涓庢墜鍔ㄥ悗澶?# ==============================================================
+# 调试与手动后备
+# ==============================================================
 
 on property:debug.decrypt.force=1
     start vendor.qseecomd
