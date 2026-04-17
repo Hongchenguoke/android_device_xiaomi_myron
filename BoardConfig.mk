@@ -448,6 +448,7 @@ BOARD_SYSTEMSDK_VERSIONS                := 34
 # getenforce = Enforcing (confirmed)
 # SELinux must be active for Rust HALs (OneKeyMint/Gatekeeper)
 BOARD_SEPOLICY_DIRS                     += $(DEVICE_PATH)/sepolicy
+SELINUX_IGNORE_NEVERALLOWS              := true
 
 # ─────────────────────────────────────────────────────────
 # Debug
