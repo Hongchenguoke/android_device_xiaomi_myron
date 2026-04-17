@@ -1,93 +1,98 @@
-# =============================================================================  
-# file_contexts  
-# Device node and file labeling for recovery  
-#  
-# All device nodes verified from real device data.  
-# /dev/keystore intentionally ABSENT (confirmed non-existent  
-# on Android 16 OneKeyMint architecture).  
-#  
-# Type safety:  
-#   - tee_device: defined in AOSP base sepolicy  
-#   - spcom_device: declared in recovery.te  
-#   - qseecom_dma_heap_device: declared in recovery.te  
-#   - metadata_file: declared in recovery.te (safety net)  
-#   - persist_file: declared in recovery.te (safety net)  
-#   - block_device, vendor_file, sysfs, system_file, rootfs,  
-#     configfs, functionfs: all AOSP base types  
-# =============================================================================  
-  
-# ===========================================================  
-# TEE / Security Devices  
-# ===========================================================  
-/dev/qseecom                                       u:object_r:tee_device:s0  
-/dev/spcom                                          u:object_r:spcom_device:s0  
-/dev/dma_heap/qcom,qseecom                         u:object_r:qseecom_dma_heap_device:s0  
-/dev/dma_heap/qcom,qseecom-ta                      u:object_r:qseecom_dma_heap_device:s0  
-/dev/dma_heap/qcom,secure-non-pixel                 u:object_r:qseecom_dma_heap_device:s0  
-/dev/dma_heap/qcom,secure-pixel                     u:object_r:qseecom_dma_heap_device:s0  
-  
-# ===========================================================  
-# Block Devices  
-# ===========================================================  
-/dev/block/platform/soc/1d84000\.ufshc(/.*)?        u:object_r:block_device:s0  
-/dev/block/bootdevice(/.*)?                         u:object_r:block_device:s0  
-  
-# ===========================================================  
-# Vendor Binaries (pre-extracted into recovery ramdisk)  
-# ===========================================================  
-/vendor/bin/qseecomd                                                  u:object_r:vendor_file:s0  
-/vendor/bin/hw/android\.hardware\.security\.onekeymint-service-qti    u:object_r:vendor_file:s0  
-/vendor/bin/hw/android\.hardware\.gatekeeper-rust-service-qti         u:object_r:vendor_file:s0  
-  
-# ===========================================================  
-# Vendor Libraries  
-# ===========================================================  
-/vendor/lib64(/.*)?                                  u:object_r:vendor_file:s0  
-  
-# ===========================================================  
-# Sysfs — Backlight  
-# ===========================================================  
-/sys/class/backlight/panel0-backlight(/.*)?          u:object_r:sysfs:s0  
-  
-# ===========================================================  
-# Sysfs — LEDs (flashlight)  
-# ===========================================================  
-/sys/class/leds/white:flash-1(/.*)?                  u:object_r:sysfs:s0  
-/sys/class/leds/yellow:flash-0(/.*)?                 u:object_r:sysfs:s0  
-  
-# ===========================================================  
-# Sysfs — Thermal  
-# ===========================================================  
-/sys/class/thermal/thermal_zone75(/.*)?              u:object_r:sysfs:s0  
-  
-# ===========================================================  
-# Sysfs — Power Supply (battery, usb, wireless)  
-# ===========================================================  
-/sys/class/power_supply/battery(/.*)?                u:object_r:sysfs:s0  
-/sys/class/power_supply/usb(/.*)?                    u:object_r:sysfs:s0  
-/sys/class/power_supply/wireless(/.*)?               u:object_r:sysfs:s0  
-  
-# ===========================================================  
-# Recovery binary and libraries  
-# ===========================================================  
-/sbin(/.*)?                                          u:object_r:rootfs:s0  
-/system/bin(/.*)?                                    u:object_r:system_file:s0  
-/system/lib64(/.*)?                                  u:object_r:system_file:s0  
-/system/etc(/.*)?                                    u:object_r:system_file:s0  
-  
-# ===========================================================  
-# Metadata partition mount point  
-# ===========================================================  
+# =============================================================================
+# file_contexts
+# Device node and file labeling for recovery
+#
+# 所有 device node 均来自真机验证数据。
+# /dev/keystore 故意未列出（Android 16 OneKeyMint 架构上不存在）。
+#
+# Type safety:
+#   - tee_device, block_device, sysfs, system_file, rootfs,
+#     configfs, functionfs, metadata_file: AOSP base 已定义
+#   - spcom_device, qseecom_dma_heap_device, persist_file:
+#     在 recovery.te 中声明
+# =============================================================================
+
+# ===========================================================
+# TEE / Security Devices
+# ===========================================================
+/dev/qseecom                                       u:object_r:tee_device:s0
+/dev/spcom                                          u:object_r:spcom_device:s0
+/dev/dma_heap/qcom,qseecom                         u:object_r:qseecom_dma_heap_device:s0
+/dev/dma_heap/qcom,qseecom-ta                      u:object_r:qseecom_dma_heap_device:s0
+/dev/dma_heap/qcom,secure-non-pixel                 u:object_r:qseecom_dma_heap_device:s0
+/dev/dma_heap/qcom,secure-pixel                     u:object_r:qseecom_dma_heap_device:s0
+
+# ===========================================================
+# Block Devices
+# ===========================================================
+/dev/block/platform/soc/1d84000\.ufshc(/.*)?        u:object_r:block_device:s0
+/dev/block/bootdevice(/.*)?                         u:object_r:block_device:s0
+
+# ===========================================================
+# Vendor Binaries (pre-extracted into recovery ramdisk)
+# ===========================================================
+/vendor/bin/qseecomd                                                  u:object_r:vendor_file:s0
+/vendor/bin/hw/android\.hardware\.security\.onekeymint-service-qti    u:object_r:vendor_file:s0
+/vendor/bin/hw/android\.hardware\.gatekeeper-rust-service-qti         u:object_r:vendor_file:s0
+
+# ===========================================================
+# Vendor Libraries
+# ===========================================================
+/vendor/lib64(/.*)?                                  u:object_r:vendor_file:s0
+
+# ===========================================================
+# ODM Binaries & Libraries (Android 16 NXP StrongBox / Weaver)
+# 真机路径: /odm/bin/hw/ 及 /odm/lib64/
+# ===========================================================
+/odm/bin/hw/android\.hardware\.security\.keymint3-service\.strongbox\.nxp    u:object_r:vendor_file:s0
+/odm/bin/hw/android\.hardware\.weaver-service\.nxp-qti                       u:object_r:vendor_file:s0
+/odm/lib64(/.*)?                                                             u:object_r:vendor_file:s0
+
+# ===========================================================
+# Sysfs — Backlight
+# ===========================================================
+/sys/class/backlight/panel0-backlight(/.*)?          u:object_r:sysfs:s0
+
+# ===========================================================
+# Sysfs — LEDs (flashlight)
+# ===========================================================
+/sys/class/leds/white:flash-1(/.*)?                  u:object_r:sysfs:s0
+/sys/class/leds/yellow:flash-0(/.*)?                 u:object_r:sysfs:s0
+
+# ===========================================================
+# Sysfs — Thermal
+# 注意: BoardConfig.mk 中 TW_CUSTOM_CPU_TEMP_PATH 使用 thermal_zone45
+# ===========================================================
+/sys/class/thermal/thermal_zone45(/.*)?              u:object_r:sysfs:s0
+
+# ===========================================================
+# Sysfs — Power Supply (battery, usb, wireless)
+# ===========================================================
+/sys/class/power_supply/battery(/.*)?                u:object_r:sysfs:s0
+/sys/class/power_supply/usb(/.*)?                    u:object_r:sysfs:s0
+/sys/class/power_supply/wireless(/.*)?               u:object_r:sysfs:s0
+
+# ===========================================================
+# Recovery binary and libraries
+# ===========================================================
+/sbin(/.*)?                                          u:object_r:rootfs:s0
+/system/bin(/.*)?                                    u:object_r:system_file:s0
+/system/lib64(/.*)?                                  u:object_r:system_file:s0
+/system/etc(/.*)?                                    u:object_r:system_file:s0
+
+# ===========================================================
+# Metadata partition mount point
+# ===========================================================
 /metadata(/.*)?                                      u:object_r:metadata_file:s0
-  
-# ===========================================================  
-# Persist partition mount point  
-# ===========================================================  
+
+# ===========================================================
+# Persist partition mount point
+# ===========================================================
 /mnt/vendor/persist(/.*)?                            u:object_r:persist_file:s0
-/persist(/.*)?                                       u:object_r:persist_file:s0 
-  
-# ===========================================================  
-# USB gadget configfs  
-# ===========================================================  
-/config/usb_gadget(/.*)?                             u:object_r:configfs:s0 
+/persist(/.*)?                                       u:object_r:persist_file:s0
+
+# ===========================================================
+# USB gadget configfs
+# ===========================================================
+/config/usb_gadget(/.*)?                             u:object_r:configfs:s0
 /dev/usb-ffs(/.*)?                                   u:object_r:functionfs:s0
