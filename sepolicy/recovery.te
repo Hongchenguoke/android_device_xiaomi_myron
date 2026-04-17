@@ -32,10 +32,6 @@ type persist_file, file_type;
 # 注意：Android 16 基础策略无 fs_type 属性，仅用 file_type
 type firmware_file, file_type;
 
-# Keystore 数据文件类型（加密元数据存储）
-# 注意：Android 16 基础策略无 data_file_type 属性，仅用 file_type
-type keystore_data_file, file_type;
-
 # 将 recovery 域设为 permissive
 # 若 AOSP base policy 已声明，此语句重复但无害（permissive 允许累加）
 permissive recovery;
