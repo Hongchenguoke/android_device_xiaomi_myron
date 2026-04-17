@@ -120,6 +120,9 @@ on fs
     mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
 
 on post-fs
+    # 先执行解密准备（挂载 vendor、等待 TEE）
+    exec /sbin/sh /sbin/prepdecrypt.sh
+
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
     exec /sbin/sh /sbin/variant-script.sh
 
