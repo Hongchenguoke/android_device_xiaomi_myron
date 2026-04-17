@@ -29,45 +29,53 @@
 /dev/block/bootdevice(/.*)?                         u:object_r:block_device:s0
 
 # ===========================================================
-# Vendor Binaries (pre-extracted into recovery ramdisk)
+# Input / Display / Touch
 # ===========================================================
-/vendor/bin/qseecomd                                                  u:object_r:vendor_file:s0
-/vendor/bin/hw/android\.hardware\.security\.onekeymint-service-qti    u:object_r:vendor_file:s0
-/vendor/bin/hw/android\.hardware\.gatekeeper-rust-service-qti         u:object_r:vendor_file:s0
+/dev/input(/.*)?                                    u:object_r:input_device:s0
+/dev/graphics(/.*)?                                 u:object_r:graphics_device:s0
+/dev/fb[0-9]*                                       u:object_r:graphics_device:s0
 
 # ===========================================================
-# Vendor Libraries
+# Binder
 # ===========================================================
-/vendor/lib64(/.*)?                                  u:object_r:vendor_file:s0
+/dev/binder                                         u:object_r:binder_device:s0
+/dev/hwbinder                                       u:object_r:hwbinder_device:s0
+/dev/vndbinder                                      u:object_r:vndbinder_device:s0
 
 # ===========================================================
-# ODM Binaries & Libraries (Android 16 NXP StrongBox / Weaver)
-# 真机路径: /odm/bin/hw/ 及 /odm/lib64/
+# Logging
 # ===========================================================
-/odm/bin/hw/android\.hardware\.security\.keymint3-service\.strongbox\.nxp    u:object_r:vendor_file:s0
-/odm/bin/hw/android\.hardware\.weaver-service\.nxp-qti                       u:object_r:vendor_file:s0
-/odm/lib64(/.*)?                                                             u:object_r:vendor_file:s0
+/dev/log/main                                       u:object_r:log_device:s0
+/dev/log/events                                     u:object_r:log_device:s0
+/dev/log/system                                     u:object_r:log_device:s0
 
 # ===========================================================
-# Sysfs — Backlight
+# Other device nodes
 # ===========================================================
-/sys/class/backlight/panel0-backlight(/.*)?          u:object_r:sysfs:s0
+/dev/null                                           u:object_r:null_device:s0
+/dev/zero                                           u:object_r:null_device:s0
+/dev/full                                           u:object_r:null_device:s0
+/dev/random                                         u:object_r:random_device:s0
+/dev/urandom                                        u:object_r:random_device:s0
+/dev/ptmx                                           u:object_r:ptmx_device:s0
+/dev/tty                                            u:object_r:ptmx_device:s0
+/dev/pts(/.*)?                                      u:object_r:devpts:s0
 
 # ===========================================================
-# Sysfs — LEDs (flashlight)
+# proc
 # ===========================================================
-/sys/class/leds/white:flash-1(/.*)?                  u:object_r:sysfs:s0
-/sys/class/leds/yellow:flash-0(/.*)?                 u:object_r:sysfs:s0
+/proc(/.*)?                                         u:object_r:proc:s0
+/proc/cpuinfo                                       u:object_r:proc:s0
+/proc/meminfo                                       u:object_r:proc:s0
+/proc/uptime                                        u:object_r:proc:s0
+/proc/version                                       u:object_r:proc:s0
+/proc/cmdline                                       u:object_r:proc:s0
+/proc/self/fd                                       u:object_r:proc:s0
 
 # ===========================================================
-# Sysfs — Thermal
-# 注意: BoardConfig.mk 中 TW_CUSTOM_CPU_TEMP_PATH 使用 thermal_zone45
+# sysfs
 # ===========================================================
-/sys/class/thermal/thermal_zone45(/.*)?              u:object_r:sysfs:s0
-
-# ===========================================================
-# Sysfs — Power Supply (battery, usb, wireless)
-# ===========================================================
+/sys(/.*)?                                          u:object_r:sysfs:s0
 /sys/class/power_supply/battery(/.*)?                u:object_r:sysfs:s0
 /sys/class/power_supply/usb(/.*)?                    u:object_r:sysfs:s0
 /sys/class/power_supply/wireless(/.*)?               u:object_r:sysfs:s0
@@ -96,3 +104,14 @@
 # ===========================================================
 /config/usb_gadget(/.*)?                             u:object_r:configfs:s0
 /dev/usb-ffs(/.*)?                                   u:object_r:functionfs:s0
+
+# ===========================================================
+# Firmware partition (TEE/TrustZone 固件 - OneKeyMint/qseecomd 必需)
+# Android 16: 包含 smcinvoke、OneKeyMint、NXP StrongBox 固件
+# ===========================================================
+/vendor/firmware_mnt(/.*)?                           u:object_r:firmware_file:s0
+
+# ===========================================================
+# Keystore 数据目录（FBE 加密相关）
+# ===========================================================
+/data/misc/keystore(/.*)?                            u:object_r:keystore_data_file:s0
