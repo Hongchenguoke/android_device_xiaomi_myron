@@ -295,8 +295,8 @@ TW_MAX_BRIGHTNESS                       := 16383
 TW_DEFAULT_BRIGHTNESS                   := 4096
 
 # Display offset (fox_14.1 validated: 141 works)
-TW_Y_OFFSET                             := 141
-TW_H_OFFSET                             := -141
+TW_Y_OFFSET                             := 111
+TW_H_OFFSET                             := -111
 TW_STATUS_ICONS_ALIGN                   := center
 TW_NO_SCREEN_BLANK                      := true
 TW_SCREEN_BLANK_ON_BOOT                 := true
