@@ -29,9 +29,11 @@ type qseecom_dma_heap_device, dev_type;
 type persist_file, file_type;
 
 # 固件文件类型（/vendor/firmware_mnt/image/ - TEE 固件）
+# 注意：Android 16 基础策略无 fs_type 属性，仅用 file_type
 type firmware_file, file_type;
 
 # Keystore 数据文件类型（加密元数据存储）
+# 注意：Android 16 基础策略无 data_file_type 属性，仅用 file_type
 type keystore_data_file, file_type;
 
 # 将 recovery 域设为 permissive
