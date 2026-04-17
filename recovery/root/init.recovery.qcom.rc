@@ -121,7 +121,7 @@ on fs
 
 on post-fs
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
-    exec /sbin/sh /sbin/myron_variant.sh
+    exec /sbin/sh /sbin/variant-script.sh
 
     # 为期望 /persist 的服务创建兼容性符号链接
     symlink /mnt/vendor/persist /persist
