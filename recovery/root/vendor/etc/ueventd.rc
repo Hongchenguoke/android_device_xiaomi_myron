@@ -1,0 +1,155 @@
+# Copyright (c) 2025, Xiaomi Myron (SM8750/Canoe) Device Configuration
+# Platform: Android 16, GKI 2.0, OrangeFox Recovery
+import /vendor/etc/ueventd.qcom.userdebug.rc
+
+# 固件路径 (基于验证数据: firmware_mnt, modem_firmware, soccp_firmware)
+firmware_directories /data/vendor/bdf/ /vendor/firmware_mnt/image/ /vendor/modem_firmware/image/ /vendor/soccp_firmware/image/
+
+# 子系统
+subsystem dma_heap
+    devname uevent_devpath
+    dirname /dev/dma_heap
+
+subsystem mem_buf_vm
+    devname uevent_devpath
+    dirname /dev/mem_buf_vm
+
+# ==================== TEE / 安全核心 (OneKeyMint 严格依赖) ====================
+# 基于验证数据 PID 1175 (keymint), 1176 (qseecomd), 1299 (nxp_strongbox)
+/dev/qseecom              0660   system     drmrpc
+/dev/qce                  0660   system     drmrpc
+/dev/smcinvoke            0660   system     drmrpc
+/dev/qsee_ipc_irq_spss    0660   system     drmrpc
+/dev/spcom                0660   system     system
+/dev/spss_utils           0660   system     system
+/dev/sp_kernel            0660   system     system
+/dev/sp_nvm               0660   system     system
+/dev/sp_ssr               0660   system     system
+/dev/sp_keymaster         0660   system     system
+/dev/qti-smmu-proxy       0660   system     system
+/dev/seemplog             0660   system     system
+/dev/pft                  0660   system     drmrpc
+/dev/tz_log               0660   system     drmrpc   # TEE 日志，调试 OneKeyMint 必需
+
+# DMA Heap (qseecomd 验证打开 /dev/dma_heap/qcom,qseecom)
+/dev/dma_heap/qcom,*      0444   system     system
+/dev/ion                  0664   system     system
+/dev/membuf               0664   system     system
+
+# ==================== 存储 (UFS - 验证数据: 1d84000.ufshc) ====================
+/dev/block/platform/soc/1d84000.ufshc/by-name/frp    0600   system     system
+/dev/block/platform/soc/1d84000.ufshc/by-name/config 0600   system     system
+
+/dev/device-mapper        0660   system     system
+/dev/dm-*                 0660   system     system
+
+# UFS RPMB 安全存储 (OneKeyMint 密钥存储必需)
+/dev/0:0:0:49476          0600   system     system
+
+# ==================== 显示 & GPU (验证数据: msm_drm, msm_kgsl) ====================
+/dev/kgsl                 0666   system     system
+/dev/kgsl-3d0             0666   system     system
+/dev/genlock              0666   system     system   # 高通显示同步核心，修复遗漏
+
+/sys/class/graphics/fb*     hpd                      0664    system  graphics
+/sys/class/graphics/fb*     dynamic_fps              0664    system  graphics
+/sys/class/graphics/fb*     msm_fb_dfps_mode         0664    system  graphics
+/sys/class/graphics/fb*     hdr_stream               0664    system  graphics
+/sys/class/graphics/fb*     pa                       0664    system  graphics
+/sys/class/graphics/fb*     hdcp/tp                  0664    system  graphics
+/sys/class/graphics/fb*     hdcp2p2/min_level_change 0660    system  graphics
+
+/sys/devices/platform/soc/9800000.qcom,mdss_mdp power/control 0664 system graphics
+/sys/devices/platform/soc/ae00000.qcom,mdss_mdp power/control 0664 system graphics
+
+/sys/class/kgsl/kgsl-3d0    perfcounter              0660    root    shell
+
+# ==================== 触摸 (Focaltech FT3683 + 小米方案) ====================
+# 基于验证数据: focaltech_touch_3683, xiaomi_touch, input7
+/sys/devices/platform/soc/*.i2c/i2c-*/*-*/input/input*    secure_touch         0440   system  drmrpc
+/sys/devices/platform/soc/*.i2c/i2c-*/*-*/input/input*    secure_touch_enable  0660   system  drmrpc
+/sys/class/fts/touch_aoi aoi_set 0660 root system
+/sys/class/fts/touch_aoi power_set 0660 root system
+
+# 小米 ImproveTouch (原始 ueventd.rc.txt 第 416-418 行，修复遗漏)
+/dev/hbtp_input           0660   system     system
+/dev/hbtp_vm              0660   system     system
+
+# ==================== USB (验证数据: a600000.dwc3) ====================
+/dev/bus/usb/001/*        0660   system     system
+/dev/bus/usb/002/*        0660   system     system
+/dev/bus/usb/003/*        0660   system     system
+/dev/hidraw*              0660   system     system
+
+/sys/class/dual_role_usb/*	data_role	0660	system	system
+/sys/class/dual_role_usb/*	power_role	0660	system	system
+/sys/class/typec/port0		data_role	0660	system	usb
+/sys/class/typec/port0		power_role	0660	system	usb
+/sys/class/typec/port0		port_type	0660	system	usb
+
+/sys/bus/platform/devices/a600000.ssusb	dynamic_disable	0220	root	usb
+/sys/bus/platform/devices/a600000.ssusb    mode        0660  system  usb
+
+/sys/bus/usb/devices/*      power/autosuspend          0660  system  usb
+/sys/bus/usb/devices/*      power/control              0660  system  usb
+
+# ==================== 音频 (验证数据: wcd939x_dlkm, wsa884x_dlkm) ====================
+# Recovery 仅需基础音频节点用于提示音
+/dev/wcd_dsp0_control     0660   system     audio
+/dev/wcd-dsp-glink        0660   system     audio
+/dev/avtimer              0660   system     audio
+/dev/msm_hweffects        0660   system     audio
+/dev/msm_audio_ion        0660   system     audio
+/dev/i2c-7                0660   system     audio
+
+# ==================== 充电 & 电量计 (验证数据: mca_*, bq27z561) ====================
+/dev/qg                   0660   system     system
+/dev/qg_battery           0660   system     system
+/dev/battery_data         0660   system     system
+/dev/vm_bms               0660   system     system
+
+# ==================== 诊断 & 调试 ====================
+/dev/diag                 0660   system     oem_2901
+/dev/mhi_*_pipe_4         0660   system     system
+/dev/ramdump*             0640   system     system
+/dev/remoteproc*          0640   system     system
+/dev/subsys_*             0640   system     system
+/dev/kmsg                 0620   root       system
+
+# ==================== LED & 振动 ====================
+/sys/class/leds/red      delay_on     0640    system    system
+/sys/class/leds/red      delay_off    0640    system    system
+/sys/class/leds/red      breath       0640    system    system
+/sys/class/leds/green    delay_on     0640    system    system
+/sys/class/leds/green    delay_off    0640    system    system
+/sys/class/leds/blue     delay_on     0640    system    system
+/sys/class/leds/blue     delay_off    0640    system    system
+
+/sys/class/qcom-haptics    visense_enabled     0400    system    system
+/sys/class/qcom-haptics    primitive_duration  0600    system    system
+/sys/class/qcom-haptics    lra_frequency_hz    0440    system    audio
+
+# ==================== Gunyah 虚拟化 (Android 16 必需) ====================
+# 验证数据: gh_irq_lend, gh_ctrl, hvc_gunyah 模块
+/dev/gunyah                 0666   root     root
+/dev/trustedvm_cma          0666   root     root
+/dev/oemvm_cma              0666   root     root
+
+/sys/class/remoteproc/remoteproc*   state     0660    root  system
+/sys/class/remoteproc/remoteproc*   recovery  0660    root  system
+
+# ==================== 指纹 (验证数据: mi_fp 模块) ====================
+/dev/qbt*                 0660   system     system
+
+# ==================== NFC (保留基础节点) ====================
+/dev/nfc-nci              0660   nfc        nfc
+/dev/nq-nci               0660   nfc        nfc
+
+# ==================== 其他核心设备 ====================
+/dev/rtc0                 0660   system     system
+/dev/pta                  0660   system     system
+/dev/hab                  0666   system     system
+/dev/uio*                 0660   system     system
+
+# 内存热插拔 (验证数据: mem-offline)
+/sys/devices/system/memory/memory* state    0660 system system

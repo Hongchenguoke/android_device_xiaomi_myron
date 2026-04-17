@@ -1,30 +1,28 @@
-# =============================================================================  
+﻿# =============================================================================  
 # recovery.fstab (TWRP v2 format)  
-# OrangeFox fox-14.1 — Xiaomi Myron (Redmi K90 Pro Max)  
+# OrangeFox fox-14.1 鈥?Xiaomi Myron (Redmi K90 Pro Max)  
 #  
 # Format: mount_point  fs_type  device  [device2]  flags=flag1;flag2;...  
 #  
-# 数据源（均从真机验证）：  
-#   - 物理分区：blockdev --getsize64  
-#   - 动态分区：lpdump（super = 14495514624 字节）  
-#   - 加密：fstab.qcom 原始提取  
-#   - 文件系统：mount 输出 + fstab.qcom  
-#   - /metadata：ext4（由 fstab.qcom 确认，非 f2fs） 
-#   - UFS 控制器：1d84000.ufshc  
+# 鏁版嵁婧愶紙鍧囦粠鐪熸満楠岃瘉锛夛細  
+#   - 鐗╃悊鍒嗗尯锛歜lockdev --getsize64  
+#   - 鍔ㄦ€佸垎鍖猴細lpdump锛坰uper = 14495514624 瀛楄妭锛? 
+#   - 鍔犲瘑锛歠stab.qcom 鍘熷鎻愬彇  
+#   - 鏂囦欢绯荤粺锛歮ount 杈撳嚭 + fstab.qcom  
+#   - /metadata锛歟xt4锛堢敱 fstab.qcom 纭锛岄潪 f2fs锛?
+#   - UFS 鎺у埗鍣細1d84000.ufshc  
 #  
 # TWRP v2 fstab key rules:  
-#   - 标志以分号（;）分隔
-#   - display= 设置TWRP图形界面中显示的名称
-#   - logical = 位于super分区内（动态分区）
-#   - slotselect = 支持A/B槽位识别
-#   - backup=1 = 在备份菜单中显示
-#   - flashimg=1 = 可刷入原始镜像
-#   - wipeingui = 在清除菜单中显示
+#   - 鏍囧織浠ュ垎鍙凤紙;锛夊垎闅?#   - display= 璁剧疆TWRP鍥惧舰鐣岄潰涓樉绀虹殑鍚嶇О
+#   - logical = 浣嶄簬super鍒嗗尯鍐咃紙鍔ㄦ€佸垎鍖猴級
+#   - slotselect = 鏀寔A/B妲戒綅璇嗗埆
+#   - backup=1 = 鍦ㄥ浠借彍鍗曚腑鏄剧ず
+#   - flashimg=1 = 鍙埛鍏ュ師濮嬮暅鍍?#   - wipeingui = 鍦ㄦ竻闄よ彍鍗曚腑鏄剧ず
 # =============================================================================  
   
 # ===========================================================  
-# 动态 / 逻辑分区（位于 super 分区内） 
-# 均为 erofs 文件系统，只读，A/B 槽位  
+# 鍔ㄦ€?/ 閫昏緫鍒嗗尯锛堜綅浜?super 鍒嗗尯鍐咃級 
+# 鍧囦负 erofs 鏂囦欢绯荤粺锛屽彧璇伙紝A/B 妲戒綅  
 # ===========================================================  
 /system                erofs    system                                            flags=display="System";logical;slotselect;backup=1
 /system_ext            erofs    system_ext                                        flags=display="System EXT";logical;slotselect;backup=1
@@ -36,9 +34,9 @@
 /mi_ext                erofs    mi_ext                                            flags=display="MI EXT";logical;slotselect;backup=1
 
 # ===========================================================  
-# 用户数据分区（F2FS文件系统，文件级加密）  
+# 鐢ㄦ埛鏁版嵁鍒嗗尯锛團2FS鏂囦欢绯荤粺锛屾枃浠剁骇鍔犲瘑锛? 
 #  
-# 来自fstab.qcom的加密配置：  
+# 鏉ヨ嚜fstab.qcom鐨勫姞瀵嗛厤缃細  
 #   fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0  
 #   metadata_encryption=aes-256-xts:wrappedkey_v0  
 #   keydirectory=/metadata/vold/metadata_encryption  
@@ -46,18 +44,17 @@
 /data                  f2fs     /dev/block/bootdevice/by-name/userdata            flags=display="Data";backup=1;wipeingui;latemount;wait;check;formattable;fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0;wrappedkey;metadata_encryption=aes-256-xts:wrappedkey_v0;keydirectory=/metadata/vold/metadata_encryption
 
 # ===========================================================  
-# 元数据分区（ext4，文件级加密密钥存储）
-# 由 fstab.qcom 确认为 ext4 — 非 f2fs  
+# 鍏冩暟鎹垎鍖猴紙ext4锛屾枃浠剁骇鍔犲瘑瀵嗛挜瀛樺偍锛?# 鐢?fstab.qcom 纭涓?ext4 鈥?闈?f2fs  
 # ===========================================================  
-/metadata              ext4     /dev/block/bootdevice/by-name/metadata            flags=display="Metadata";backup=1;wrappedkey
+/metadata                  f2fs     /dev/block/bootdevice/by-name/metadata            flags=display="Metadata";backup=1;wrappedkey
 
 # ===========================================================  
-# 持久化分区（ext4，TEE持久化数据，传感器校准）  
+# 鎸佷箙鍖栧垎鍖猴紙ext4锛孴EE鎸佷箙鍖栨暟鎹紝浼犳劅鍣ㄦ牎鍑嗭級  
 # ===========================================================  
 /persist               ext4     /dev/block/bootdevice/by-name/persist             flags=display="Persist";backup=1
 
 # ===========================================================  
-# 启动镜像（物理分区，A/B架构，可直接刷入原始镜像）  
+# 鍚姩闀滃儚锛堢墿鐞嗗垎鍖猴紝A/B鏋舵瀯锛屽彲鐩存帴鍒峰叆鍘熷闀滃儚锛? 
 # ===========================================================  
 /boot                  emmc     /dev/block/bootdevice/by-name/boot                flags=display="Boot";backup=1;flashimg=1;slotselect
 /init_boot             emmc     /dev/block/bootdevice/by-name/init_boot           flags=display="Init Boot";backup=1;flashimg=1;slotselect
@@ -66,24 +63,23 @@
 /dtbo                  emmc     /dev/block/bootdevice/by-name/dtbo                flags=display="DTBO";backup=1;flashimg=1;slotselect
 
 # ===========================================================  
-# 验证启动元数据  
+# 楠岃瘉鍚姩鍏冩暟鎹? 
 # ===========================================================  
 /vbmeta                emmc     /dev/block/bootdevice/by-name/vbmeta              flags=display="VBMeta";backup=1;flashimg=1;slotselect
 /vbmeta_system         emmc     /dev/block/bootdevice/by-name/vbmeta_system       flags=display="VBMeta System";backup=1;flashimg=1;slotselect
 
 # ===========================================================  
-# 固件分区（支持备份/恢复）  
+# 鍥轰欢鍒嗗尯锛堟敮鎸佸浠?鎭㈠锛? 
 # ===========================================================  
 /modem                 vfat     /dev/block/bootdevice/by-name/modem               flags=display="Modem";backup=1;slotselect
 /bluetooth             vfat     /dev/block/bootdevice/by-name/bluetooth            flags=display="Bluetooth";backup=1;slotselect
 /dsp                   ext4     /dev/block/bootdevice/by-name/dsp                 flags=display="DSP";backup=1;slotselect
 
 # ===========================================================  
-# 杂项分区（用于A/B的启动控制块）  
+# 鏉傞」鍒嗗尯锛堢敤浜嶢/B鐨勫惎鍔ㄦ帶鍒跺潡锛? 
 # ===========================================================  
 /misc                  emmc     /dev/block/bootdevice/by-name/misc                flags=display="Misc"
 
 # ===========================================================
-# 外部存储（USB OTG）
-# ===========================================================
+# 澶栭儴瀛樺偍锛圲SB OTG锛?# ===========================================================
 /usb_otg               auto     /dev/block/sdg1    /dev/block/sdg                 flags=display="USB OTG";storage;wipeingui;removable

@@ -1,0 +1,14 @@
+# Copyright (c) Qualcomm Technologies, Inc.
+# All rights reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+
+on init
+    start vendor.keymint
+
+service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
+    class early_hal
+    user system
+    group system drmrpc
+    seclabel u:r:recovery:s0
+    # 注意：真机验证此服务 PID 持续存活，严禁 oneshot
+    disabled
