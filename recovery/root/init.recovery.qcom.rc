@@ -1,38 +1,61 @@
 # =============================================================================
-# init.recovery.qcom.rc - 最小化测试版本（保留触屏显示，禁用TEE）
+# init.recovery.qcom.rc
+# 基于真机 lsmod 依赖关系优化（Snapdragon 8 Elite / Android 16 / GKI 2.0）
 # =============================================================================
 
 import /init.recovery.usb.rc
+import /init.recovery.logd.rc
+import /init.recovery.hlthchrg.rc
+import /init.recovery.ldconfig.rc
+import /init.recovery.wifi.rc
 
 # ==============================================================
-# early-init
+# early-init 阶段
 # ==============================================================
 on early-init
     setprop ro.boot.mode "recovery"
     write /proc/sys/kernel/modules_disabled 0
+    write /proc/sys/kernel/hotplug ""
 
 # ==============================================================
-# init - 基础目录 + 模块加载（无TEE设备节点）
+# init 阶段：基于真机 lsmod 严格依赖顺序加载模块
 # ==============================================================
 on init
+    # ---- 平台标识 ----
+    setprop ro.hardware qcom
+    setprop ro.board.platform canoe
+    setprop ro.boot.hardware.platform canoe
+
+    # ---- 目录骨架 ----
     mkdir /config 0755 root root
     mkdir /mnt/vendor 0755 root root
     mkdir /mnt/vendor/persist 0755 root root
     mkdir /metadata 0771 root root
-    mkdir /tmp/vendor 0771 root root
-    mkdir /tmp/vendor/tzstorage 0770 system system
-    mkdir /tmp/vendor/qsee 0770 system system
 
+    # ---- UFS 控制器就绪 ----
     wait /dev/block/platform/soc/1d84000.ufshc 5
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
 
-    # 触屏模块（保留）
-    insmod /vendor/lib/modules/panel_event_notifier.ko
-    insmod /vendor/lib/modules/xiaomi_touch.ko
-    insmod /vendor/lib/modules/gh_irq_lend.ko
-    insmod /vendor/lib/modules/focaltech_touch_3683.ko
+    # ===========================================================
+    # 阶段 0: 通信基础设施（真机最早加载，被众多模块依赖）
+    # ===========================================================
+    insmod /vendor/lib/modules/qcom_glink.ko
+    insmod /vendor/lib/modules/qcom_glink_smem.ko
+    insmod /vendor/lib/modules/qcom_smd.ko
+    insmod /vendor/lib/modules/rproc_qcom_common.ko
 
-    # 显示模块（保留）
+    # ===========================================================
+    # 阶段 1: TEE 核心（smcinvoke 被 101 个模块使用）
+    # ===========================================================
+    insmod /vendor/lib/modules/smcinvoke_dlkm.ko
+    insmod /vendor/lib/modules/mitee_dlkm.ko
+    insmod /vendor/lib/modules/tz_log_dlkm.ko
+    insmod /vendor/lib/modules/tmecom-intf_dlkm.ko
+    insmod /vendor/lib/modules/qsee_ipc_irq_bridge.ko
+
+    # ===========================================================
+    # 阶段 2: 显示基础（真机顺序：sync_fence → msm_hw_fence → msm_drm）
+    # ===========================================================
     insmod /vendor/lib/modules/sync_fence.ko
     insmod /vendor/lib/modules/msm_hw_fence.ko
     insmod /vendor/lib/modules/drm_display_helper.ko
@@ -40,30 +63,52 @@ on init
     insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko
     insmod /vendor/lib/modules/msm_drm.ko
 
-    # TEE模块（注释）
-    # insmod /vendor/lib/modules/smcinvoke_dlkm.ko
-    # insmod /vendor/lib/modules/mitee_dlkm.ko
-    # insmod /vendor/lib/modules/tmecom-intf_dlkm.ko
-    # insmod /vendor/lib/modules/tz_log_dlkm.ko
+    # ===========================================================
+    # 阶段 3: GH/IRQ（gh_irq_lend 被 msm_drm 和 focaltech 共用，必须在 drm 之后）
+    # ===========================================================
+    insmod /vendor/lib/modules/gh_irq_lend.ko
+    insmod /vendor/lib/modules/gh_ctrl.ko
+    insmod /vendor/lib/modules/gh_panic_notifier.ko
+    insmod /vendor/lib/modules/gh_rm_booster.ko
+    insmod /vendor/lib/modules/gh_tlmm_vm_mem_access.ko
+    insmod /vendor/lib/modules/hvc_gunyah.ko
 
-    # TEE设备节点（注释）
-    # wait /dev/spcom 2
-    # chown system system /dev/spcom
-    # chmod 0660 /dev/spcom
-    # chown root root "/dev/dma_heap/qcom,qseecom"
-    # chmod 0444 "/dev/dma_heap/qcom,qseecom"
-    # chown root root "/dev/dma_heap/qcom,qseecom-ta"
-    # chmod 0444 "/dev/dma_heap/qcom,qseecom-ta"
-    # chown root root "/dev/dma_heap/qcom,secure-non-pixel"
-    # chmod 0444 "/dev/dma_heap/qcom,secure-non-pixel"
-    # chown root root "/dev/dma_heap/qcom,secure-pixel"
-    # chmod 0444 "/dev/dma_heap/qcom,secure-pixel"
+    # ===========================================================
+    # 阶段 4: 触屏（严格按真机依赖链：panel → xiaomi → focaltech）
+    # ===========================================================
+    insmod /vendor/lib/modules/panel_event_notifier.ko
+    insmod /vendor/lib/modules/xiaomi_touch.ko
+    insmod /vendor/lib/modules/focaltech_touch_3683.ko
 
-    # 不启动qseecomd
-    # start vendor.qseecomd
+    # ===========================================================
+    # 阶段 5: 其他辅助模块（无严格依赖顺序）
+    # ===========================================================
+    insmod /vendor/lib/modules/qce50_dlkm.ko
+    insmod /vendor/lib/modules/qcedev-mod_dlkm.ko
+    insmod /vendor/lib/modules/qcrypto-msm_dlkm.ko
+    insmod /vendor/lib/modules/qrtr-gunyah.ko
+    insmod /vendor/lib/modules/sps_drv.ko
+
+    # ---- TEE 设备节点权限 ----
+    wait /dev/spcom 2
+    chown system system /dev/spcom
+    chmod 0660 /dev/spcom
+
+    # DMA heap 节点（必须加引号）
+    chown root root "/dev/dma_heap/qcom,qseecom"
+    chown root root "/dev/dma_heap/qcom,qseecom-ta"
+    chown root root "/dev/dma_heap/qcom,secure-non-pixel"
+    chown root root "/dev/dma_heap/qcom,secure-pixel"
+    chmod 0444 "/dev/dma_heap/qcom,qseecom"
+    chmod 0444 "/dev/dma_heap/qcom,qseecom-ta"
+    chmod 0444 "/dev/dma_heap/qcom,secure-non-pixel"
+    chmod 0444 "/dev/dma_heap/qcom,secure-pixel"
+
+    # ---- 启动 TEE 守护进程 ----
+    start vendor.qseecomd
 
 # ==============================================================
-# fs - 基础挂载
+# fs 阶段
 # ==============================================================
 on fs
     wait /dev/block/bootdevice/by-name/metadata 5
@@ -72,16 +117,21 @@ on fs
     wait /dev/block/bootdevice/by-name/persist 5
     mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
 
-# ==============================================================
-# post-fs - 无脚本执行
-# ==============================================================
 on post-fs
+    exec /sbin/sh /sbin/prepdecrypt.sh
+    exec /sbin/sh /sbin/variant-script.sh
     symlink /mnt/vendor/persist /persist
-    # exec /sbin/sh /sbin/prepdecrypt.sh
-    # exec /sbin/sh /sbin/variant-script.sh
+
+    mkdir /data/vendor 0771 root root
+    mkdir /data/vendor/tzstorage 0770 system system
+    mkdir /data/vendor/qsee 0770 system system
+    mkdir /data/misc 0771 system system
+    mkdir /data/misc/keystore 0700 system system
+    mkdir /data/misc/gatekeeper 0700 system system
+    mkdir /tmp/tzstorage 0770 system system
 
 # ==============================================================
-# boot - 背光/手电筒
+# boot 阶段
 # ==============================================================
 on boot
     chown root root /sys/class/backlight/panel0-backlight/brightness
@@ -97,51 +147,57 @@ on boot
     chmod 0444 /sys/class/thermal/thermal_zone45/temp
 
 # ==============================================================
-# TEE服务 - 全部注释
+# 解密服务（Android 16 OneKeyMint）
 # ==============================================================
-# service vendor.qseecomd /vendor/bin/qseecomd
-#     socket notify-topology stream 660 system drmrpc
-#     class core
-#     user root
-#     group root drmrpc
-#     disabled
-#     seclabel u:r:recovery:s0
 
-# service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
-#     class early_hal
-#     user system
-#     group system drmrpc
-#     disabled
-#     seclabel u:r:recovery:s0
+service vendor.qseecomd /vendor/bin/qseecomd
+    socket notify-topology stream 660 system drmrpc
+    class core
+    user root
+    group root drmrpc
+    disabled
+    seclabel u:r:recovery:s0
 
-# service vendor.keymint.strongbox /odm/bin/hw/android.hardware.security.keymint3-service.strongbox.nxp
-#     class early_hal
-#     user root
-#     group root
-#     disabled
-#     seclabel u:r:recovery:s0
+service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
+    class early_hal
+    user system
+    group system drmrpc
+    disabled
+    seclabel u:r:recovery:s0
 
-# service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
-#     class early_hal
-#     user system
-#     group system
-#     disabled
-#     seclabel u:r:recovery:s0
+service vendor.keymint.strongbox /odm/bin/hw/android.hardware.security.keymint3-service.strongbox.nxp
+    class early_hal
+    user root
+    group root
+    disabled
+    seclabel u:r:recovery:s0
 
-# service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
-#     class early_hal
-#     user root
-#     group root
-#     disabled
-#     seclabel u:r:recovery:s0
+service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
+    class early_hal
+    user system
+    group system
+    disabled
+    seclabel u:r:recovery:s0
 
-# ==============================================================
-# 解密链触发器 - 注释
-# ==============================================================
-# on property:vendor.sys.listeners.registered=true
-#     start vendor.keymint
-#     start vendor.keymint.strongbox
-#     start vendor.weaver_nxp
-#     start vendor.gatekeeper_default
-#     setprop crypto.ready 1
-#     echo I: [Recovery] crypto.ready=1 > /dev/kmsg
+service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
+    class early_hal
+    user root
+    group root
+    disabled
+    seclabel u:r:recovery:s0
+
+on property:vendor.sys.listeners.registered=true
+    start vendor.keymint
+    start vendor.keymint.strongbox
+    start vendor.weaver_nxp
+    start vendor.gatekeeper_default
+    setprop crypto.ready 1
+    echo I: [Recovery] crypto.ready=1 > /dev/kmsg
+
+on property:debug.decrypt.force=1
+    start vendor.qseecomd
+    sleep 2
+    start vendor.keymint
+    sleep 1
+    start vendor.gatekeeper_default
+    setprop crypto.ready 1
