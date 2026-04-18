@@ -25,9 +25,6 @@ fastboot reboot recovery
 ## 注意事项
 - 首次刷入建议先备份原厂 recovery
 
-## 维护者
-
-MissMyTime — Unofficial build
 
 ## License
 
