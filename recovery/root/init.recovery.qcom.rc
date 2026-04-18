@@ -1,9 +1,11 @@
 # =============================================================================
-# init.recovery.qcom.rc - 最小化测试版本
+# init.recovery.qcom.rc - 最小化测试版本（容错增强版）
 # 只保留基础功能，注释所有 TEE/解密相关组件以排查重启问题
+# 关键修改：wait 命令加 || true 防止超时卡住
 # =============================================================================
 
 import /init.recovery.usb.rc
+import /init.recovery.logd.rc
 
 # ==============================================================
 # early-init 阶段
@@ -33,26 +35,27 @@ on init
     mkdir /metadata 0771 root root
 
     # ---- UFS 控制器就绪 ----
-    wait /dev/block/platform/soc/1d84000.ufshc 5
+    # 容错：超时也能继续（|| true）
+    wait /dev/block/platform/soc/1d84000.ufshc 5 || true
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
 
     # ===========================================================
     # 触屏模块（保留，确保能操作）
     # ===========================================================
-    insmod /vendor/lib/modules/panel_event_notifier.ko
-    insmod /vendor/lib/modules/xiaomi_touch.ko
-    insmod /vendor/lib/modules/gh_irq_lend.ko
-    insmod /vendor/lib/modules/focaltech_touch_3683.ko
+    insmod /vendor/lib/modules/panel_event_notifier.ko || true
+    insmod /vendor/lib/modules/xiaomi_touch.ko || true
+    insmod /vendor/lib/modules/gh_irq_lend.ko || true
+    insmod /vendor/lib/modules/focaltech_touch_3683.ko || true
 
     # ===========================================================
     # 显示模块（保留，确保能看到画面）
     # ===========================================================
-    insmod /vendor/lib/modules/sync_fence.ko
-    insmod /vendor/lib/modules/msm_hw_fence.ko
-    insmod /vendor/lib/modules/drm_display_helper.ko
-    insmod /vendor/lib/modules/smmu_proxy_dlkm.ko
-    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko
-    insmod /vendor/lib/modules/msm_drm.ko
+    insmod /vendor/lib/modules/sync_fence.ko || true
+    insmod /vendor/lib/modules/msm_hw_fence.ko || true
+    insmod /vendor/lib/modules/drm_display_helper.ko || true
+    insmod /vendor/lib/modules/smmu_proxy_dlkm.ko || true
+    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko || true
+    insmod /vendor/lib/modules/msm_drm.ko || true
 
     # ===========================================================
     # TEE 模块 - 暂时注释（排查是否导致重启）
@@ -75,14 +78,14 @@ on init
     # start vendor.qseecomd
 
 # ==============================================================
-# fs 阶段：挂载基础分区
+# fs 阶段：挂载基础分区（容错增强）
 # ==============================================================
 on fs
-    wait /dev/block/bootdevice/by-name/metadata 5
-    mount f2fs /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
+    wait /dev/block/bootdevice/by-name/metadata 5 || true
+    mount f2fs /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev || true
 
-    wait /dev/block/bootdevice/by-name/persist 5
-    mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
+    wait /dev/block/bootdevice/by-name/persist 5 || true
+    mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1 || true
 
 on post-fs
     # ---- 暂时注释所有脚本执行（排查是否导致崩溃）----
@@ -90,7 +93,7 @@ on post-fs
     # exec /sbin/sh /sbin/variant-script.sh
 
     # 保留基础符号链接
-    symlink /mnt/vendor/persist /persist
+    symlink /mnt/vendor/persist /persist || true
 
     # TEE 目录 - 暂时用 /tmp 代替 /data（避免未解密问题）
     mkdir /tmp/vendor 0771 root root
