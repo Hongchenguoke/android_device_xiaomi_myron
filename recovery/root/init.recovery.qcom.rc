@@ -15,7 +15,6 @@
 #   - ssgtzd: 文件不存在。
 #   - 所有 HAL service 严禁使用 oneshot（oneshot 会导致 binder 注册后进程立即自杀）
 # =============================================================================
-
 import /init.recovery.usb.rc
 import /init.recovery.logd.rc
 import /init.recovery.hlthchrg.rc
@@ -27,10 +26,8 @@ import /init.recovery.wifi.rc
 # ==============================================================
 on early-init
     setprop ro.boot.mode "recovery"
-
     # 允许加载内核模块
     write /proc/sys/kernel/modules_disabled 0
-
     # 禁用内核热插拔助手（由 recovery 自行处理 uevent）
     write /proc/sys/kernel/hotplug ""
 
@@ -55,18 +52,20 @@ on init
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
 
     # ===========================================================
-    # 内核模块加载（基于真机 lsmod 依赖顺序优化，共30个模块）
+    # 内核模块加载（基于真机 lsmod 依赖顺序优化，共31个模块）
     # Used by = 被依赖，必须先加载
+    # 所有模块名已与 vendor_boot.img 提取的真实文件名100%对齐
     # ===========================================================
-
     # 阶段 0: 通信基础设施（lsmod 中最早加载，被上层依赖）
     insmod /vendor/lib/modules/qcom_glink.ko
     insmod /vendor/lib/modules/qcom_glink_smem.ko
     insmod /vendor/lib/modules/qcom_smd.ko
     insmod /vendor/lib/modules/rproc_qcom_common.ko
 
-    # 阶段 1: TEE 核心（调整顺序：tmecom-intf 在 tz_log 之前）
-    # tmecom-intf_dlkm 被 tz_log_dlkm 依赖，必须先加载
+    # 阶段 1: TEE 核心（调整顺序：qcom-scm 必须第一个！）
+    # qcom-scm → 被 smcinvoke_dlkm 依赖（真机验证 42个模块依赖它）
+    # tmecom-intf_dlkm → 被 tz_log_dlkm 依赖，必须先加载
+    insmod /vendor/lib/modules/qcom-scm.ko          # 新增：TEE核心依赖（连字符）
     insmod /vendor/lib/modules/smcinvoke_dlkm.ko
     insmod /vendor/lib/modules/mitee_dlkm.ko
     insmod /vendor/lib/modules/qsee_ipc_irq_bridge.ko
@@ -84,10 +83,10 @@ on init
     # 阶段 3: 显示基础（msm_drm 依赖 gh_irq_lend 和 synx-driver，必须在它们之后）
     insmod /vendor/lib/modules/sync_fence.ko
     insmod /vendor/lib/modules/msm_hw_fence.ko
-    insmod /vendor/lib/modules/synx-driver.ko      # 新增：被 msm_drm 依赖（真机验证 437KB）
+    insmod /vendor/lib/modules/synx-driver.ko      # 修正：连字符而非下划线
     insmod /vendor/lib/modules/drm_display_helper.ko
     insmod /vendor/lib/modules/smmu_proxy_dlkm.ko
-    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko
+    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko  # 保留：msm_drm 直接依赖
     insmod /vendor/lib/modules/msm_drm.ko
 
     # 阶段 4: 触屏（严格依赖链：panel → xiaomi → focaltech）
@@ -106,7 +105,6 @@ on init
 
     # ---- TEE 设备节点权限（基于真机验证） ----
     # 注意: /dev/qseecom 在 Android 16 上不存在。切勿操作它。
-
     # /dev/spcom: 安全处理器通信 (替代 /dev/qseecom)
     # 真机验证: system:system 0660
     wait /dev/spcom 2
@@ -125,7 +123,6 @@ on init
     chmod 0444 "/dev/dma_heap/qcom,secure-pixel"
 
     # 注意: /dev/keystore 在 Android 16 OneKeyMint 上不存在。
-
     # ---- 模块与节点就绪后立即启动 TEE 守护进程 ----
     start vendor.qseecomd
 
@@ -145,7 +142,6 @@ on fs
 on post-fs
     # 先执行解密准备（挂载 vendor、等待 TEE）
     exec /sbin/sh /sbin/prepdecrypt.sh
-
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
     exec /sbin/sh /sbin/variant-script.sh
 
@@ -187,7 +183,6 @@ on boot
 # 注意：所有 HAL service 严禁使用 oneshot
 # oneshot 会导致进程在注册 binder 后立即退出，解密链断裂。
 # ==============================================================
-
 # 1. qseecomd: TEE 守护进程
 # 真机验证: class core, socket notify-topology, user=root
 service vendor.qseecomd /vendor/bin/qseecomd
@@ -247,7 +242,6 @@ service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
 # start 是 init 内置关键字，在 /system/bin/sh 中不存在。
 # 所有 start 命令必须在 init 脚本本体中执行。
 # ==============================================================
-
 on property:vendor.sys.listeners.registered=true
     # 直接顺序启动，无需延迟。HAL 之间的依赖在调用时发生，不在启动时。
     start vendor.keymint
@@ -260,7 +254,6 @@ on property:vendor.sys.listeners.registered=true
 # ==============================================================
 # 调试与手动后备
 # ==============================================================
-
 on property:debug.decrypt.force=1
     start vendor.qseecomd
     sleep 2
