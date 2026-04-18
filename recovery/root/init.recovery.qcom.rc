@@ -3,7 +3,7 @@
 # 通过 ro.hardware=qcom 由 Android init 自动导入
 #
 # 设备:   Xiaomi Myron (红米 K90 Pro Max)
-# 平台:   Canoe (Snapdragon 8 Elite) / Android 16 / GKI 2.0
+# 平台:   Canoe (Snapdragon 8 Elite Gen5) / Android 16 / GKI 2.0
 # Recovery: OrangeFox fox-14.1
 #
 # 关键验证事实:
