@@ -1,0 +1,18 @@
+# Build artifacts
+out/
+*.img
+*.zip
+*.log
+
+# Large prebuilt files
+prebuilt/kernel
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

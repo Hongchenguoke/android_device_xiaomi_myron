@@ -25,15 +25,19 @@ import /init.recovery.ldconfig.rc
 # ==============================================================
 on early-init
     setprop ro.boot.mode "recovery"
+    # SELinux permissive — Rust HALs (OneKeyMint/Gatekeeper) 在 recovery sepolicy 下大量 avc denied
+    setenforce 0
     # 允许加载内核模块
     write /proc/sys/kernel/modules_disabled 0
     # 禁用内核热插拔助手（由 recovery 自行处理 uevent）
     write /proc/sys/kernel/hotplug ""
+    echo I:OF:early-init start > /dev/kmsg
 
 # ==============================================================
 # init 阶段：硬件初始化 — 模块、设备节点、属性
 # ==============================================================
 on init
+    echo I:OF:init start > /dev/kmsg
     # ---- 平台标识 ----
     setprop ro.hardware qcom
     setprop ro.board.platform canoe
@@ -123,14 +127,15 @@ on init
 
     # 注意: /dev/keystore 在 Android 16 OneKeyMint 上不存在。
     # ---- 模块与节点就绪后立即启动 TEE 守护进程 ----
+    echo I:OF:modules done, starting qseecomd > /dev/kmsg
     start vendor.qseecomd
 
 # ==============================================================
 # fs 阶段：挂载 recovery 所需的物理分区
 # ==============================================================
 on fs
+    echo I:OF:fs start > /dev/kmsg
     # metadata: 真机验证为 ext4（fstab.qcom 确认）
-    # 若实际为 f2fs 且 mount 失败，请将此行改为 mount f2fs ...
     wait /dev/block/bootdevice/by-name/metadata 5
     mount ext4 /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
 
@@ -138,11 +143,21 @@ on fs
     wait /dev/block/bootdevice/by-name/persist 5
     mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
 
+    # TEE Firmware: modem 分区包含 KeyMint/qseecomd 必需的 qwes.mbn / st_eseservice.b00 等
+    # 必须 bind mount 到 /vendor/firmware_mnt，否则 TEE HAL 启动时找不到固件直接 crash
+    wait /dev/block/bootdevice/by-name/modem 5
+    mount vfat /dev/block/bootdevice/by-name/modem /firmware ro,shortname=lower,uid=1000,gid=1000,dmask=227,fmask=337
+    mount none /firmware /vendor/firmware_mnt bind
+    echo I:OF:modem firmware mounted > /dev/kmsg
+
 on post-fs
+    echo I:OF:post-fs start > /dev/kmsg
     # 先执行解密准备（挂载 vendor、等待 TEE）
     exec /odm/bin/prepdecrypt.sh
+    echo I:OF:prepdecrypt done > /dev/kmsg
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
     exec /odm/bin/variant-script.sh
+    echo I:OF:variant-script done > /dev/kmsg
 
     # 为期望 /persist 的服务创建兼容性符号链接
     symlink /mnt/vendor/persist /persist
@@ -162,6 +177,7 @@ on post-fs
 # boot 阶段：权限设置、硬件配置
 # ==============================================================
 on boot
+    echo I:OF:boot start > /dev/kmsg
     # ---- 背光 ----
     chown root root /sys/class/backlight/panel0-backlight/brightness
     chmod 0666 /sys/class/backlight/panel0-backlight/brightness
@@ -296,6 +312,7 @@ service tee-supplicant /vendor/bin/tee-supplicant
 # 所有 start 命令必须在 init 脚本本体中执行。
 # ==============================================================
 on property:vendor.sys.listeners.registered=true
+    echo I:OF:listeners registered, starting crypto chain > /dev/kmsg
     # 完整解密链启动顺序（基于真机ps验证）
     start vendor.keymaster
     start vendor.keymint
@@ -308,23 +325,10 @@ on property:vendor.sys.listeners.registered=true
     start vendor.minkdaemon
     start tee-supplicant
     setprop crypto.ready 1
-    echo I: [Recovery] crypto.ready=1 > /dev/kmsg
+    echo I:OF:crypto.ready=1 > /dev/kmsg
 
 # ==============================================================
 # 调试与手动后备
 # ==============================================================
 on property:debug.decrypt.force=1
-    start vendor.qseecomd
-    sleep 2
-    start vendor.keymaster
-    start vendor.keymint
-    start vendor.keymint.strongbox
-    start vendor.weaver_nxp
-    start vendor.gatekeeper_default
-    start vendor.secure_element
-    start vendor.secretkeeper
-    start vendor.qwesd
-    start vendor.minkdaemon
-    start tee-supplicant
-    sleep 1
-    setprop crypto.ready 1
+    exec_background /system/bin/sh -c "start vendor.qseecomd; sleep 2; start vendor.keymaster; start vendor.keymint; start vendor.keymint.strongbox; start vendor.weaver_nxp; start vendor.gatekeeper_default; start vendor.secure_element; start vendor.secretkeeper; start vendor.qwesd; start vendor.minkdaemon; start tee-supplicant; sleep 1; setprop crypto.ready 1"

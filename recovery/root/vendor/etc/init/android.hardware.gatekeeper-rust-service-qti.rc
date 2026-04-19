@@ -2,8 +2,8 @@
 # All rights reserved.
 # Confidential and Proprietary - Qualcomm Technologies, Inc.
 
-on init
-    start vendor.gatekeeper_default
+# REMOVED: on init start vendor.gatekeeper_default
+# Recovery init.recovery.qcom.rc handles qseecomd readiness first
 
 service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
     class early_hal

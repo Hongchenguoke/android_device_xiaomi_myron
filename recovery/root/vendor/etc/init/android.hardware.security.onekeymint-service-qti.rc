@@ -2,8 +2,8 @@
 # All rights reserved.
 # Confidential and Proprietary - Qualcomm Technologies, Inc.
 
-on init
-    start vendor.keymint
+# REMOVED: on init start vendor.keymint
+# Recovery init.recovery.qcom.rc handles qseecomd readiness first
 
 service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
     class early_hal

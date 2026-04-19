@@ -196,7 +196,7 @@ while [ $wait_count -lt $max_wait ]; do
         break
     fi
     
-    sleep 0.5
+    sleep 1
     wait_count=$((wait_count + 1))
 done
 
