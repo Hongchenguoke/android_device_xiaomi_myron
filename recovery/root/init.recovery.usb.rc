@@ -7,9 +7,8 @@
 #   getprop sys.usb.controller → a600000.dwc3  
 # =============================================================================  
 
-    mount configfs none /config
-
 on init
+    mount configfs none /config
     # ---- USB controller ----
     # Verified: a600000.dwc3 (DWC3 USB3 controller on Canoe/SM8750)
     setprop sys.usb.controller "a600000.dwc3"

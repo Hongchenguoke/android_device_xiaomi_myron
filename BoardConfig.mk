@@ -71,9 +71,11 @@ TARGET_KERNEL_HEADER_ARCH     := arm64
 BOARD_KERNEL_IMAGE_NAME       := Image
 BOARD_BOOT_HEADER_VERSION     := 4
 BOARD_KERNEL_PAGESIZE         := 4096
-TARGET_KERNEL_CLANG_COMPILE   := true
 
 # Prebuilt kernel binary (GKI Image, extracted from boot.img via magiskboot)
+# NOTE: This is a PLACEHOLDER. On GKI 2.0 + dedicated recovery, the real kernel
+# lives in boot.img and is loaded by bootloader; recovery.img only contains ramdisk.
+# fox_14.1 build system requires this file to exist, but it is NOT packed into recovery.
 TARGET_PREBUILT_KERNEL        := $(DEVICE_PATH)/prebuilt/kernel
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
@@ -206,7 +208,7 @@ BOARD_MI_EXTIMAGE_FILE_SYSTEM_TYPE       := erofs
 TARGET_COPY_OUT_MI_EXT                   := mi_ext
 
 BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE     := f2fs
-BOARD_METADATAIMAGE_FILE_SYSTEM_TYPE     := f2fs
+BOARD_METADATAIMAGE_FILE_SYSTEM_TYPE     := ext4
 
 TARGET_USERIMAGES_USE_F2FS               := true
 TARGET_USERIMAGES_USE_EXT4               := true
@@ -244,12 +246,12 @@ TW_INCLUDE_CRYPTO_FBE                   := true
 TW_INCLUDE_FBE_METADATA_DECRYPT         := true
 TW_USE_FSCRYPT_POLICY                   := 2
 
-# OneKeyMint (Rust/TEE) — NOT legacy KeyMaster 4.x HAL
+# OneKeyMint (Rust/TEE) — primary decryption path
 TW_CRYPTO_USE_VENDOR_KEYMINT            := true
 TW_KEYMINT_CLIENT_CONNECT_TIMEOUT       := 4000
-# android.hardware.keymaster@4.0-service-qti EXISTS (ls confirmed) — keep flag
-OF_NO_KEYMASTER_VER_4X                  := 1
-OF_DEFAULT_KEYMASTER_VERSION            := 4.1
+# KeyMaster 4.0 fallback exists on device but OneKeyMint is the active path
+# Do NOT set OF_NO_KEYMASTER_VER_4X / OF_DEFAULT_KEYMASTER_VERSION here
+# They conflict with TW_CRYPTO_USE_VENDOR_KEYMINT
 
 # Security patch bypass — confirmed: fastboot version-os=99.87.36
 PLATFORM_VERSION                        := 99.87.36
@@ -392,39 +394,44 @@ TW_CUSTOM_CPU_TEMP_PATH                := "/sys/class/thermal/thermal_zone45/tem
 #                   → smmu_proxy → hdcp_qseecom → msm_drm)
 #   Phase5: Touch  (xiaomi_touch → focaltech_touch_3683)
 # ─────────────────────────────────────────────────────────
-TW_LOAD_VENDOR_MODULES := \
-    "gh_rm_booster.ko \
-    gh_ctrl.ko \
-    gh_irq_lend.ko \
-    gh_panic_notifier.ko \
-    gh_tlmm_vm_mem_access.ko \
-    hvc_gunyah.ko \
-    qrtr-gunyah.ko \
-    smcinvoke_dlkm.ko \
-    mitee_dlkm.ko \
-    qsee_ipc_irq_bridge.ko \
-    tmecom-intf_dlkm.ko \
-    tz_log_dlkm.ko \
-    sps_drv.ko \
-    qce50_dlkm.ko \
-    qcedev-mod_dlkm.ko \
-    qcrypto-msm_dlkm.ko \
-    qcom_glink.ko \
-    qcom_glink_smem.ko \
-    qcom_smd.ko \
-    rproc_qcom_common.ko \
-    sync_fence.ko \
-    msm_hw_fence.ko \
-    drm_display_helper.ko \
-    panel_event_notifier.ko \
-    smmu_proxy_dlkm.ko \
-    hdcp_qseecom_dlkm.ko \
-    msm_drm.ko \
-    xiaomi_touch.ko \
-    focaltech_touch_3683.ko"
-
-TW_LOAD_VENDOR_MODULES_EXCLUDE_GKI     := true
-TW_LOAD_PREBUILT_MODULES_AT_FIRST      := true
+# NOTE: Modules are loaded manually in init.recovery.qcom.rc to ensure
+# exact load order. TW_LOAD_VENDOR_MODULES is disabled to avoid double-load.
+# If you need to re-enable automatic loading, remove the insmod lines
+# from init.recovery.qcom.rc first.
+# TW_LOAD_VENDOR_MODULES := \
+#     "gh_rm_booster.ko \
+#     gh_ctrl.ko \
+#     gh_irq_lend.ko \
+#     gh_panic_notifier.ko \
+#     gh_tlmm_vm_mem_access.ko \
+#     hvc_gunyah.ko \
+#     qrtr-gunyah.ko \
+#     smcinvoke_dlkm.ko \
+#     mitee_dlkm.ko \
+#     qsee_ipc_irq_bridge.ko \
+#     tmecom-intf_dlkm.ko \
+#     tz_log_dlkm.ko \
+#     sps_drv.ko \
+#     qce50_dlkm.ko \
+#     qcedev-mod_dlkm.ko \
+#     qcrypto-msm_dlkm.ko \
+#     qcom_glink.ko \
+#     qcom_glink_smem.ko \
+#     qcom_smd.ko \
+#     rproc_qcom_common.ko \
+#     qcom-scm.ko \
+#     sync_fence.ko \
+#     msm_hw_fence.ko \
+#     synx-driver.ko \
+#     drm_display_helper.ko \
+#     panel_event_notifier.ko \
+#     smmu_proxy_dlkm.ko \
+#     hdcp_qseecom_dlkm.ko \
+#     msm_drm.ko \
+#     xiaomi_touch.ko \
+#     focaltech_touch_3683.ko"
+# TW_LOAD_VENDOR_MODULES_EXCLUDE_GKI     := true
+# TW_LOAD_PREBUILT_MODULES_AT_FIRST      := true
 
 # ─────────────────────────────────────────────────────────
 # Misc

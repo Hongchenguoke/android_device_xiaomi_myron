@@ -2,14 +2,6 @@
 # All Rights Reserved.
 # Confidential and Proprietary - Qualcomm Technologies, Inc.
 
-on init
-    start vendor.qseecomd
-
-service vendor.qseecomd /vendor/bin/qseecomd
-    class core
-    user system
-    group system drmrpc
-    # 真机验证：定义了 socket，Recovery 中保留以确保 TEE 通信句柄初始化
-    socket qseecomd stream 0660 system drmrpc
-    seclabel u:r:recovery:s0
-    disabled
+# qseecomd service definition moved to init.recovery.qcom.rc to avoid duplication
+# The canonical definition is in recovery/root/init.recovery.qcom.rc
+# with: class core, socket qseecomd, user system, group system drmrpc

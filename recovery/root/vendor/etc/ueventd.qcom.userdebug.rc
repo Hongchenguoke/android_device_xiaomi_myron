@@ -1,0 +1,2 @@
+# Placeholder - imported by ueventd.rc to avoid init parser warnings
+# Myron (K90 Pro Max) uses ueventd.rc directly for all device node rules

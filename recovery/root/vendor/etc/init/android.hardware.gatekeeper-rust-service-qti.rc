@@ -1,0 +1,18 @@
+# Copyright (c) Qualcomm Technologies, Inc.
+# All rights reserved.
+# Confidential and Proprietary - Qualcomm Technologies, Inc.
+
+on init
+    start vendor.gatekeeper_default
+
+service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
+    class early_hal
+    user system
+    group system
+    seclabel u:r:recovery:s0
+    # 真机验证：非 oneshot，Rust 进程需持续运行
+    disabled
+
+# 真机原样：此属性触发 enable，确保所有启动路径下服务可用
+on property:vendor.gatekeeper.is_security_level_spu=0
+    enable vendor.gatekeeper_default

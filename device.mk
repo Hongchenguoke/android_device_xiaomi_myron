@@ -76,7 +76,9 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.product.device=myron \
     ro.virtual_ab.enabled=true \
     ro.hardware.keystore= \
-    sys.usb.controller=a600000.dwc3
+    sys.usb.controller=a600000.dwc3 \
+    vendor.gatekeeper.disable_spu=true \
+    vendor.gatekeeper.is_security_level_spu=0
 
 # ===========================================================  
 # Soong Namespaces  

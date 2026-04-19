@@ -19,7 +19,6 @@ import /init.recovery.usb.rc
 import /init.recovery.logd.rc
 import /init.recovery.hlthchrg.rc
 import /init.recovery.ldconfig.rc
-import /init.recovery.wifi.rc
 
 # ==============================================================
 # early-init 阶段
@@ -65,7 +64,7 @@ on init
     # 阶段 1: TEE 核心（调整顺序：qcom-scm 必须第一个！）
     # qcom-scm → 被 smcinvoke_dlkm 依赖（真机验证 42个模块依赖它）
     # tmecom-intf_dlkm → 被 tz_log_dlkm 依赖，必须先加载
-    insmod /vendor/lib/modules/qcom-scm.ko          # 新增：TEE核心依赖（连字符）
+    insmod /vendor/lib/modules/qcom-scm.ko          # TEE核心依赖（连字符）
     insmod /vendor/lib/modules/smcinvoke_dlkm.ko
     insmod /vendor/lib/modules/mitee_dlkm.ko
     insmod /vendor/lib/modules/qsee_ipc_irq_bridge.ko
@@ -83,7 +82,7 @@ on init
     # 阶段 3: 显示基础（msm_drm 依赖 gh_irq_lend 和 synx-driver，必须在它们之后）
     insmod /vendor/lib/modules/sync_fence.ko
     insmod /vendor/lib/modules/msm_hw_fence.ko
-    insmod /vendor/lib/modules/synx-driver.ko      # 修正：连字符而非下划线
+    insmod /vendor/lib/modules/synx-driver.ko       # 连字符
     insmod /vendor/lib/modules/drm_display_helper.ko
     insmod /vendor/lib/modules/smmu_proxy_dlkm.ko
     insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko  # 保留：msm_drm 直接依赖
@@ -130,10 +129,10 @@ on init
 # fs 阶段：挂载 recovery 所需的物理分区
 # ==============================================================
 on fs
-    # metadata: 真机验证为 f2fs，但 recovery.fstab 使用 ext4 作为兼容 fallback
+    # metadata: 真机验证为 ext4（fstab.qcom 确认）
     # 若实际为 f2fs 且 mount 失败，请将此行改为 mount f2fs ...
     wait /dev/block/bootdevice/by-name/metadata 5
-    mount f2fs /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
+    mount ext4 /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
 
     # persist: ext4 (已验证)
     wait /dev/block/bootdevice/by-name/persist 5
@@ -141,9 +140,9 @@ on fs
 
 on post-fs
     # 先执行解密准备（挂载 vendor、等待 TEE）
-    exec /sbin/sh /sbin/prepdecrypt.sh
+    exec /odm/bin/prepdecrypt.sh
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
-    exec /sbin/sh /sbin/variant-script.sh
+    exec /odm/bin/variant-script.sh
 
     # 为期望 /persist 的服务创建兼容性符号链接
     symlink /mnt/vendor/persist /persist
@@ -184,12 +183,13 @@ on boot
 # oneshot 会导致进程在注册 binder 后立即退出，解密链断裂。
 # ==============================================================
 # 1. qseecomd: TEE 守护进程
-# 真机验证: class core, socket notify-topology, user=root
+# 真机验证: class core, socket qseecomd, user=system
+# 注意: 与 vendor/etc/init/qseecomd.rc 保持完全一致，避免定义冲突
 service vendor.qseecomd /vendor/bin/qseecomd
-    socket notify-topology stream 660 system drmrpc
+    socket qseecomd stream 0660 system drmrpc
     class core
-    user root
-    group root drmrpc
+    user system
+    group system drmrpc
     disabled
     seclabel u:r:recovery:s0
 
@@ -231,6 +231,59 @@ service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
     disabled
     seclabel u:r:recovery:s0
 
+# 6. Secure Element: NFC安全元件服务
+# 真机验证: class early_hal, user=system, group=nfc system
+service vendor.secure_element /vendor/bin/hw/android.hardware.secure_element-service.qti
+    class early_hal
+    user system
+    group nfc system
+    disabled
+    seclabel u:r:recovery:s0
+
+# 7. SecretKeeper: 密钥保管服务
+service vendor.secretkeeper /vendor/bin/hw/android.hardware.security.secretkeeper-service-qti
+    class early_hal
+    user system
+    group system
+    disabled
+    seclabel u:r:recovery:s0
+
+# 8. KeyMaster 4.0: 旧版密钥管理 fallback
+# 真机上同时存在 OneKeyMint 和 KeyMaster 4.0，保留兼容
+service vendor.keymaster /vendor/bin/hw/android.hardware.keymaster@4.0-service-qti
+    class early_hal
+    user system
+    group system drmrpc
+    disabled
+    seclabel u:r:recovery:s0
+
+# 9. QWESD: QTI Wireless Edge Security Daemon
+service vendor.qwesd /vendor/bin/qwesd
+    class late_start
+    user system
+    group system inet
+    disabled
+    seclabel u:r:recovery:s0
+
+# 10. Mink Daemon: HLOS Mink守护进程
+service vendor.minkdaemon /vendor/bin/hlosminkdaemon
+    class late_start
+    user system
+    group system oem_2912 wakelock
+    capabilities WAKE_ALARM BLOCK_SUSPEND
+    disabled
+    socket ssgtzd stream 0660 system oem_2912
+    socket hlos_mink_opener stream 0660 system system
+    seclabel u:r:recovery:s0
+
+# 11. TEE Supplicant: OP-TEE客户端守护
+service tee-supplicant /vendor/bin/tee-supplicant
+    class core
+    user root
+    group root
+    disabled
+    seclabel u:r:recovery:s0
+
 # ==============================================================
 # 解密链触发器
 #
@@ -243,11 +296,17 @@ service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
 # 所有 start 命令必须在 init 脚本本体中执行。
 # ==============================================================
 on property:vendor.sys.listeners.registered=true
-    # 直接顺序启动，无需延迟。HAL 之间的依赖在调用时发生，不在启动时。
+    # 完整解密链启动顺序（基于真机ps验证）
+    start vendor.keymaster
     start vendor.keymint
     start vendor.keymint.strongbox
     start vendor.weaver_nxp
     start vendor.gatekeeper_default
+    start vendor.secure_element
+    start vendor.secretkeeper
+    start vendor.qwesd
+    start vendor.minkdaemon
+    start tee-supplicant
     setprop crypto.ready 1
     echo I: [Recovery] crypto.ready=1 > /dev/kmsg
 
@@ -257,7 +316,15 @@ on property:vendor.sys.listeners.registered=true
 on property:debug.decrypt.force=1
     start vendor.qseecomd
     sleep 2
+    start vendor.keymaster
     start vendor.keymint
-    sleep 1
+    start vendor.keymint.strongbox
+    start vendor.weaver_nxp
     start vendor.gatekeeper_default
+    start vendor.secure_element
+    start vendor.secretkeeper
+    start vendor.qwesd
+    start vendor.minkdaemon
+    start tee-supplicant
+    sleep 1
     setprop crypto.ready 1
