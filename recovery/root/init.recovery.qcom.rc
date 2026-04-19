@@ -1,331 +1,40 @@
-# =============================================================================
-# init.recovery.qcom.rc
-# 通过 ro.hardware=qcom 由 Android init 自动导入
-#
-# 设备:   Xiaomi Myron (红米 K90 Pro Max)
-# 平台:   Canoe (Snapdragon 8 Elite Gen5) / Android 16 / GKI 2.0
-# Recovery: OrangeFox fox-14.1
-#
-# 关键验证事实:
-#   - /dev/qseecom: 不存在。切勿对其执行 wait/chown/chmod。
-#   - TEE 通信: /dev/spcom + smcinvoke_dlkm.ko
-#   - DMA heap: 0444 (O_RDONLY + ioctl)。切勿改为 0660。
-#   - qseecomd 就绪信号: vendor.sys.listeners.registered=true
-#   - vendor.sys.qseecomd.loaded / vendor.sys.keymaster.loaded: 永不设置。
-#   - ssgtzd: 文件不存在。
-#   - 所有 HAL service 严禁使用 oneshot（oneshot 会导致 binder 注册后进程立即自杀）
-# =============================================================================
+# Minimal init.rc test - only basic boot flow
+# If this works, we know the crash is in services/scripts
+
 import /init.recovery.usb.rc
 import /init.recovery.logd.rc
 import /init.recovery.hlthchrg.rc
 import /init.recovery.ldconfig.rc
 
-# ==============================================================
-# early-init 阶段
-# ==============================================================
 on early-init
-    setprop ro.boot.mode "recovery"
-    # SELinux permissive — Rust HALs (OneKeyMint/Gatekeeper) 在 recovery sepolicy 下大量 avc denied
     setenforce 0
-    # 允许加载内核模块
     write /proc/sys/kernel/modules_disabled 0
-    # 禁用内核热插拔助手（由 recovery 自行处理 uevent）
     write /proc/sys/kernel/hotplug ""
-    # trace removed: echo is not an init builtin command
 
-# ==============================================================
-# init 阶段：硬件初始化 — 模块、设备节点、属性
-# ==============================================================
 on init
-    # trace removed: echo is not an init builtin command
-    # ---- 平台标识 ----
     setprop ro.hardware qcom
     setprop ro.board.platform canoe
     setprop ro.boot.hardware.platform canoe
-
-    # ---- 目录骨架 ----
     mkdir /config 0755 root root
     mkdir /mnt/vendor 0755 root root
     mkdir /mnt/vendor/persist 0755 root root
     mkdir /metadata 0771 root root
-
-    # ---- UFS 控制器就绪 ----
-    # UFS sysfs_path: /sys/devices/platform/soc/1d84000.ufshc
     wait /dev/block/platform/soc/1d84000.ufshc 5
     symlink /dev/block/platform/soc/1d84000.ufshc /dev/block/bootdevice
 
-    # ===========================================================
-    # 内核模块加载（基于真机 lsmod 依赖顺序优化，共31个模块）
-    # Used by = 被依赖，必须先加载
-    # 所有模块名已与 vendor_boot.img 提取的真实文件名100%对齐
-    # ===========================================================
-    # 阶段 0: 通信基础设施（lsmod 中最早加载，被上层依赖）
-    insmod /vendor/lib/modules/qcom_glink.ko
-    insmod /vendor/lib/modules/qcom_glink_smem.ko
-    insmod /vendor/lib/modules/qcom_smd.ko
-    insmod /vendor/lib/modules/rproc_qcom_common.ko
-
-    # 阶段 1: TEE 核心（调整顺序：qcom-scm 必须第一个！）
-    # qcom-scm → 被 smcinvoke_dlkm 依赖（真机验证 42个模块依赖它）
-    # tmecom-intf_dlkm → 被 tz_log_dlkm 依赖，必须先加载
-    insmod /vendor/lib/modules/qcom-scm.ko          # TEE核心依赖（连字符）
-    insmod /vendor/lib/modules/smcinvoke_dlkm.ko
-    insmod /vendor/lib/modules/mitee_dlkm.ko
-    insmod /vendor/lib/modules/qsee_ipc_irq_bridge.ko
-    insmod /vendor/lib/modules/tmecom-intf_dlkm.ko
-    insmod /vendor/lib/modules/tz_log_dlkm.ko
-
-    # 阶段 2: GH/IRQ（gh_irq_lend 被 msm_drm 依赖，必须在 drm 之前！）
-    insmod /vendor/lib/modules/gh_irq_lend.ko
-    insmod /vendor/lib/modules/gh_ctrl.ko
-    insmod /vendor/lib/modules/gh_panic_notifier.ko
-    insmod /vendor/lib/modules/gh_rm_booster.ko
-    insmod /vendor/lib/modules/gh_tlmm_vm_mem_access.ko
-    insmod /vendor/lib/modules/hvc_gunyah.ko
-
-    # 阶段 3: 显示基础（msm_drm 依赖 gh_irq_lend 和 synx-driver，必须在它们之后）
-    insmod /vendor/lib/modules/sync_fence.ko
-    insmod /vendor/lib/modules/msm_hw_fence.ko
-    insmod /vendor/lib/modules/synx-driver.ko       # 连字符
-    insmod /vendor/lib/modules/drm_display_helper.ko
-    insmod /vendor/lib/modules/smmu_proxy_dlkm.ko
-    insmod /vendor/lib/modules/hdcp_qseecom_dlkm.ko  # 保留：msm_drm 直接依赖
-    insmod /vendor/lib/modules/msm_drm.ko
-
-    # 阶段 4: 触屏（严格依赖链：panel → xiaomi → focaltech）
-    # panel_event_notifier 被 xiaomi_touch 依赖
-    # xiaomi_touch 被 focaltech_touch_3683 依赖
-    insmod /vendor/lib/modules/panel_event_notifier.ko
-    insmod /vendor/lib/modules/xiaomi_touch.ko
-    insmod /vendor/lib/modules/focaltech_touch_3683.ko
-
-    # 阶段 5: 其他辅助模块（无严格依赖顺序）
-    insmod /vendor/lib/modules/qce50_dlkm.ko
-    insmod /vendor/lib/modules/qcedev-mod_dlkm.ko
-    insmod /vendor/lib/modules/qcrypto-msm_dlkm.ko
-    insmod /vendor/lib/modules/qrtr-gunyah.ko
-    insmod /vendor/lib/modules/sps_drv.ko
-
-    # ---- TEE 设备节点权限（基于真机验证） ----
-    # 注意: /dev/qseecom 在 Android 16 上不存在。切勿操作它。
-    # /dev/spcom: 安全处理器通信 (替代 /dev/qseecom)
-    # 真机验证: system:system 0660
-    wait /dev/spcom 2
-    chown system system /dev/spcom
-    chmod 0660 /dev/spcom
-
-    # DMA heap 节点: qseecomd 进行 TEE 内存分配所需
-    # 关键: 真机权限为 0444 (O_RDONLY + ioctl)。切勿改为 0660。
-    chown root root "/dev/dma_heap/qcom,qseecom"
-    chown root root "/dev/dma_heap/qcom,qseecom-ta"
-    chown root root "/dev/dma_heap/qcom,secure-non-pixel"
-    chown root root "/dev/dma_heap/qcom,secure-pixel"
-    chmod 0444 "/dev/dma_heap/qcom,qseecom"
-    chmod 0444 "/dev/dma_heap/qcom,qseecom-ta"
-    chmod 0444 "/dev/dma_heap/qcom,secure-non-pixel"
-    chmod 0444 "/dev/dma_heap/qcom,secure-pixel"
-
-    # 注意: /dev/keystore 在 Android 16 OneKeyMint 上不存在。
-    # ---- 模块与节点就绪后立即启动 TEE 守护进程 ----
-    # trace removed: echo is not an init builtin command
-    start vendor.qseecomd
-
-# ==============================================================
-# fs 阶段：挂载 recovery 所需的物理分区
-# ==============================================================
 on fs
-    # trace removed: echo is not an init builtin command
-    # metadata: 真机验证为 ext4（fstab.qcom 确认）
     wait /dev/block/bootdevice/by-name/metadata 5
     mount ext4 /dev/block/bootdevice/by-name/metadata /metadata noatime nosuid nodev
-
-    # persist: ext4 (已验证)
     wait /dev/block/bootdevice/by-name/persist 5
     mount ext4 /dev/block/bootdevice/by-name/persist /mnt/vendor/persist nosuid nodev noatime barrier=1
-
-    # TEE Firmware: modem 分区包含 KeyMint/qseecomd 必需的 qwes.mbn / st_eseservice.b00 等
-    # 必须 bind mount 到 /vendor/firmware_mnt，否则 TEE HAL 启动时找不到固件直接 crash
     wait /dev/block/bootdevice/by-name/modem 5
     mount vfat /dev/block/bootdevice/by-name/modem /firmware
     mount none /firmware /vendor/firmware_mnt bind
 
 on post-fs
-    # 把 recovery 启动日志保存到 persist 分区（系统模式下可读）
     mkdir /mnt/vendor/persist/recovery_logs 0777 root root
-    exec_background /system/bin/sh -c "sleep 3; dmesg > /mnt/vendor/persist/recovery_logs/recovery_dmesg.log; ps -A >> /mnt/vendor/persist/recovery_logs/recovery_ps.log; cat /proc/mounts >> /mnt/vendor/persist/recovery_logs/recovery_mounts.log"
-    # 先执行解密准备（挂载 vendor、等待 TEE）— 用 exec_background 避免阻塞 init
-    exec_background /system/bin/sh /odm/bin/prepdecrypt.sh
-    # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
-    exec_background /system/bin/sh /odm/bin/variant-script.sh
+    exec_background /system/bin/sh -c "sleep 3; dmesg > /mnt/vendor/persist/recovery_logs/recovery_dmesg.log"
 
-    # 为期望 /persist 的服务创建兼容性符号链接
-    symlink /mnt/vendor/persist /persist
-
-    # qseecomd 和 keymint TEE 存储所需的目录
-    mkdir /data/vendor 0771 root root
-    mkdir /data/vendor/tzstorage 0770 system system
-    mkdir /data/vendor/qsee 0770 system system
-    mkdir /data/misc 0771 system system
-    mkdir /data/misc/keystore 0700 system system
-    mkdir /data/misc/gatekeeper 0700 system system
-
-    # 若 /data 尚未解密，为 TEE 提供 tmpfs 后备
-    mkdir /tmp/tzstorage 0770 system system
-
-# ==============================================================
-# boot 阶段：权限设置、硬件配置
-# ==============================================================
 on boot
-    # trace removed: echo is not an init builtin command
-    # ---- 背光 ----
     chown root root /sys/class/backlight/panel0-backlight/brightness
     chmod 0666 /sys/class/backlight/panel0-backlight/brightness
-    chown root root /sys/class/backlight/panel0-backlight/max_brightness
-    chmod 0444 /sys/class/backlight/panel0-backlight/max_brightness
-
-    # ---- 手电筒 (OrangeFox OF_FL_PATH1 / OF_FL_PATH2) ----
-    chown root root /sys/class/leds/white:flash-1/brightness
-    chmod 0666 /sys/class/leds/white:flash-1/brightness
-    chown root root /sys/class/leds/yellow:flash-0/brightness
-    chmod 0666 /sys/class/leds/yellow:flash-0/brightness
-
-    # ---- CPU 温度 (TW_CUSTOM_CPU_TEMP_PATH) ----
-    chmod 0444 /sys/class/thermal/thermal_zone45/temp
-
-# ==============================================================
-# 解密服务 (Android 16 OneKeyMint + Rust Gatekeeper)
-# 注意：所有 HAL service 严禁使用 oneshot
-# oneshot 会导致进程在注册 binder 后立即退出，解密链断裂。
-# ==============================================================
-# 1. qseecomd: TEE 守护进程
-# 真机验证: class core, socket qseecomd, user=system
-# 注意: 与 vendor/etc/init/qseecomd.rc 保持完全一致，避免定义冲突
-service vendor.qseecomd /vendor/bin/qseecomd
-    socket qseecomd stream 0660 system drmrpc
-    class core
-    user system
-    group system drmrpc
-    disabled
-    seclabel u:r:recovery:s0
-
-# 2. OneKeyMint: 主密钥管理 (AIDL)
-# 真机验证: class early_hal, user=system, group=system drmrpc
-service vendor.keymint /vendor/bin/hw/android.hardware.security.onekeymint-service-qti
-    class early_hal
-    user system
-    group system drmrpc
-    disabled
-    seclabel u:r:recovery:s0
-
-# 3. NXP StrongBox: 硬件安全模块
-# Recovery 中不存在 vendor_nxp_strongbox 用户，降级为 root
-service vendor.keymint.strongbox /odm/bin/hw/android.hardware.security.keymint3-service.strongbox.nxp
-    class early_hal
-    user root
-    group root
-    disabled
-    seclabel u:r:recovery:s0
-
-# 4. Rust Gatekeeper: 密码验证
-# 真机验证: class early_hal, user=system, group=system
-# 服务名使用真机原样 vendor.gatekeeper_default
-service vendor.gatekeeper_default /vendor/bin/hw/android.hardware.gatekeeper-rust-service-qti
-    class early_hal
-    user system
-    group system
-    disabled
-    seclabel u:r:recovery:s0
-
-# 5. NXP Weaver: 辅助密钥存储
-# Recovery 中不存在 vendor_nxp_weaver 用户，降级为 root
-# 真机验证服务名: vendor.weaver_nxp
-service vendor.weaver_nxp /odm/bin/hw/android.hardware.weaver-service.nxp-qti
-    class early_hal
-    user root
-    group root
-    disabled
-    seclabel u:r:recovery:s0
-
-# 6. Secure Element: NFC安全元件服务
-# 真机验证: class early_hal, user=system, group=nfc system
-service vendor.secure_element /vendor/bin/hw/android.hardware.secure_element-service.qti
-    class early_hal
-    user system
-    group nfc system
-    disabled
-    seclabel u:r:recovery:s0
-
-# 7. SecretKeeper: 密钥保管服务
-service vendor.secretkeeper /vendor/bin/hw/android.hardware.security.secretkeeper-service-qti
-    class early_hal
-    user system
-    group system
-    disabled
-    seclabel u:r:recovery:s0
-
-# 8. KeyMaster 4.0: 旧版密钥管理 fallback
-# 真机上同时存在 OneKeyMint 和 KeyMaster 4.0，保留兼容
-service vendor.keymaster /vendor/bin/hw/android.hardware.keymaster@4.0-service-qti
-    class early_hal
-    user system
-    group system drmrpc
-    disabled
-    seclabel u:r:recovery:s0
-
-# 9. QWESD: QTI Wireless Edge Security Daemon
-service vendor.qwesd /vendor/bin/qwesd
-    class late_start
-    user system
-    group system inet
-    disabled
-    seclabel u:r:recovery:s0
-
-# 10. Mink Daemon: HLOS Mink守护进程
-service vendor.minkdaemon /vendor/bin/hlosminkdaemon
-    class late_start
-    user system
-    group system oem_2912 wakelock
-    capabilities WAKE_ALARM BLOCK_SUSPEND
-    disabled
-    socket ssgtzd stream 0660 system oem_2912
-    socket hlos_mink_opener stream 0660 system system
-    seclabel u:r:recovery:s0
-
-# 11. TEE Supplicant: OP-TEE客户端守护
-service tee-supplicant /vendor/bin/tee-supplicant
-    class core
-    user root
-    group root
-    disabled
-    seclabel u:r:recovery:s0
-
-# ==============================================================
-# 解密链触发器
-#
-# 关键: 仅使用 vendor.sys.listeners.registered=true。
-# 切勿使用 vendor.sys.qseecomd.loaded 或 vendor.sys.keymaster.loaded
-# — 这两个属性在本次 Android 16 构建中从未被设置。
-#
-# 注意: 不要在 exec_background 的 shell 中调用 start 命令，
-# start 是 init 内置关键字，在 /system/bin/sh 中不存在。
-# 所有 start 命令必须在 init 脚本本体中执行。
-# ==============================================================
-on property:vendor.sys.listeners.registered=true
-    # 完整解密链启动顺序（基于真机ps验证）
-    start vendor.keymaster
-    start vendor.keymint
-    start vendor.keymint.strongbox
-    start vendor.weaver_nxp
-    start vendor.gatekeeper_default
-    start vendor.secure_element
-    start vendor.secretkeeper
-    start vendor.qwesd
-    start vendor.minkdaemon
-    start tee-supplicant
-    setprop crypto.ready 1
-
-# ==============================================================
-# 调试与手动后备
-# ==============================================================
-on property:debug.decrypt.force=1
-    exec_background /system/bin/sh -c "start vendor.qseecomd; sleep 2; start vendor.keymaster; start vendor.keymint; start vendor.keymint.strongbox; start vendor.weaver_nxp; start vendor.gatekeeper_default; start vendor.secure_element; start vendor.secretkeeper; start vendor.qwesd; start vendor.minkdaemon; start tee-supplicant; sleep 1; setprop crypto.ready 1"
