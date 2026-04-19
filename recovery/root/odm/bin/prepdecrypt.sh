@@ -184,13 +184,12 @@ fi
 log_print 1 "等待 TEE 解密链就绪 (qseecomd -> keymint -> gatekeeper)..."
 
 wait_count=0
-max_wait=30  # 30 * 0.5s = 15秒
+max_wait=5  # 5s 快速超时，不阻塞 init 启动
 
 while [ $wait_count -lt $max_wait ]; do
     crypto_ready=$(get_prop crypto.ready)
     listeners_registered=$(get_prop vendor.sys.listeners.registered)
     
-    # crypto.ready=1 是最终就绪信号，listeners_registered=true 是中间信号
     if [ "$crypto_ready" = "1" ] || [ "$listeners_registered" = "true" ]; then
         log_print 1 "解密链就绪 (crypto.ready=$crypto_ready, listeners_registered=$listeners_registered)"
         break

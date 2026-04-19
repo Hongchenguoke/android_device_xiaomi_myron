@@ -150,10 +150,10 @@ on fs
     mount none /firmware /vendor/firmware_mnt bind
 
 on post-fs
-    # 先执行解密准备（挂载 vendor、等待 TEE）
-    exec /odm/bin/prepdecrypt.sh
+    # 先执行解密准备（挂载 vendor、等待 TEE）— 用 exec_background 避免阻塞 init
+    exec_background /system/bin/sh /odm/bin/prepdecrypt.sh
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
-    exec /odm/bin/variant-script.sh
+    exec_background /system/bin/sh /odm/bin/variant-script.sh
 
     # 为期望 /persist 的服务创建兼容性符号链接
     symlink /mnt/vendor/persist /persist
