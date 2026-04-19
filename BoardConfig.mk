@@ -394,44 +394,24 @@ TW_CUSTOM_CPU_TEMP_PATH                := "/sys/class/thermal/thermal_zone45/tem
 #                   → smmu_proxy → hdcp_qseecom → msm_drm)
 #   Phase5: Touch  (xiaomi_touch → focaltech_touch_3683)
 # ─────────────────────────────────────────────────────────
-# NOTE: Modules are loaded manually in init.recovery.qcom.rc to ensure
-# exact load order. TW_LOAD_VENDOR_MODULES is disabled to avoid double-load.
-# If you need to re-enable automatic loading, remove the insmod lines
-# from init.recovery.qcom.rc first.
-# TW_LOAD_VENDOR_MODULES := \
-#     "gh_rm_booster.ko \
-#     gh_ctrl.ko \
-#     gh_irq_lend.ko \
-#     gh_panic_notifier.ko \
-#     gh_tlmm_vm_mem_access.ko \
-#     hvc_gunyah.ko \
-#     qrtr-gunyah.ko \
-#     smcinvoke_dlkm.ko \
-#     mitee_dlkm.ko \
-#     qsee_ipc_irq_bridge.ko \
-#     tmecom-intf_dlkm.ko \
-#     tz_log_dlkm.ko \
-#     sps_drv.ko \
-#     qce50_dlkm.ko \
-#     qcedev-mod_dlkm.ko \
-#     qcrypto-msm_dlkm.ko \
-#     qcom_glink.ko \
-#     qcom_glink_smem.ko \
-#     qcom_smd.ko \
-#     rproc_qcom_common.ko \
-#     qcom-scm.ko \
-#     sync_fence.ko \
-#     msm_hw_fence.ko \
-#     synx-driver.ko \
-#     drm_display_helper.ko \
-#     panel_event_notifier.ko \
-#     smmu_proxy_dlkm.ko \
-#     hdcp_qseecom_dlkm.ko \
-#     msm_drm.ko \
-#     xiaomi_touch.ko \
-#     focaltech_touch_3683.ko"
-# TW_LOAD_VENDOR_MODULES_EXCLUDE_GKI     := true
-# TW_LOAD_PREBUILT_MODULES_AT_FIRST      := true
+# Auto-load vendor modules via TWRP (reference: international variant works)
+# ADSP modules are REQUIRED for KeyMint/Weaver init chain on SM8750
+TW_LOAD_VENDOR_MODULES := \
+    "focaltech_touch_3683.ko \
+    xiaomi_touch.ko \
+    adsp_loader_dlkm.ko \
+    q6_dlkm.ko \
+    q6_pdr_dlkm.ko \
+    q6_notifier_dlkm.ko \
+    snd_event_dlkm.ko \
+    gpr_dlkm.ko \
+    spf_core_dlkm.ko \
+    rproc_qcom_common.ko \
+    qcom_q6v5.ko \
+    qcom_q6v5_pas.ko \
+    qcom_sysmon.ko"
+TW_LOAD_VENDOR_MODULES_EXCLUDE_GKI     := true
+TW_LOAD_PREBUILT_MODULES_AT_FIRST      := true
 
 # ─────────────────────────────────────────────────────────
 # Misc

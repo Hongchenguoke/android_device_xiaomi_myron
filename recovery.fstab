@@ -49,7 +49,7 @@
 # 元数据分区（ext4，文件级加密密钥存储）
 # 由 fstab.qcom 确认为 ext4 — 非 f2fs  
 # ===========================================================  
-/metadata              ext4     /dev/block/bootdevice/by-name/metadata            flags=display="Metadata";backup=1;wrappedkey
+/metadata              f2fs     /dev/block/bootdevice/by-name/metadata            flags=display="Metadata";backup=1;wrappedkey
 
 # ===========================================================  
 # 持久化分区（ext4，TEE持久化数据，传感器校准）  
