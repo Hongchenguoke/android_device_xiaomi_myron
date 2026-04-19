@@ -150,6 +150,9 @@ on fs
     mount none /firmware /vendor/firmware_mnt bind
 
 on post-fs
+    # 把 recovery 启动日志保存到 persist 分区（系统模式下可读）
+    mkdir /mnt/vendor/persist/recovery_logs 0777 root root
+    exec_background /system/bin/sh -c "sleep 3; dmesg > /mnt/vendor/persist/recovery_logs/recovery_dmesg.log; ps -A >> /mnt/vendor/persist/recovery_logs/recovery_ps.log; cat /proc/mounts >> /mnt/vendor/persist/recovery_logs/recovery_mounts.log"
     # 先执行解密准备（挂载 vendor、等待 TEE）— 用 exec_background 避免阻塞 init
     exec_background /system/bin/sh /odm/bin/prepdecrypt.sh
     # 执行机型专属配置（设置型号、TWRP 偏移、复制 NXP 库/固件）
