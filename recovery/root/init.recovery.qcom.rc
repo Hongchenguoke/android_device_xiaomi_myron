@@ -26,7 +26,7 @@ import /init.recovery.ldconfig.rc
 on early-init
     setprop ro.boot.mode "recovery"
     # SELinux permissive — Rust HALs (OneKeyMint/Gatekeeper) 在 recovery sepolicy 下大量 avc denied
-    setenforce 0
+    #setenforce 0
     # 允许加载内核模块
     write /proc/sys/kernel/modules_disabled 0
     # 禁用内核热插拔助手（由 recovery 自行处理 uevent）
@@ -275,5 +275,5 @@ on property:vendor.sys.listeners.registered=true
 # ==============================================================
 # 调试与手动后备
 # ==============================================================
-on property:debug.decrypt.force=1
-    exec_background /system/bin/sh -c "start vendor.qseecomd; sleep 2; start vendor.keymaster; start vendor.keymint; start vendor.keymint.strongbox; start vendor.weaver_nxp; start vendor.gatekeeper_default; start vendor.secure_element; start vendor.secretkeeper; start vendor.qwesd; start vendor.minkdaemon; start tee-supplicant; sleep 1; setprop crypto.ready 1"
+#on property:debug.decrypt.force=1
+#    exec_background /system/bin/sh -c "start vendor.qseecomd; sleep 2; start vendor.keymaster; start vendor.keymint; start vendor.keymint.strongbox; start vendor.weaver_nxp; start vendor.gatekeeper_default; start vendor.secure_element; start vendor.secretkeeper; start vendor.qwesd; start vendor.minkdaemon; start tee-supplicant; sleep 1; setprop crypto.ready 1"
