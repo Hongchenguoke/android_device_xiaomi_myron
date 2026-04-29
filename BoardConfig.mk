@@ -1,22 +1,22 @@
-#  
-# Copyright (C) 2026 The OrangeFox Recovery Project  
-# Device : Xiaomi POCO F8 Ultra / Redmi K90 Pro Max (myron)  
-# SoC    : Snapdragon 8 Elite Gen 5 (canoe)  
-# Branch : OrangeFox 14.1  
-#  
-# 100% validated against:  
-#   magiskboot unpack boot.img / vendor_boot.img / init_boot.img  
-#   adb shell getprop / /proc/cmdline / lpdump / lsmod / getevent  
-#   blockdev --getsize64 / cat fstab.qcom / readelf / lsmod  
-#  
-# SPDX-License-Identifier: Apache-2.0  
-#  
+# ==============================================================================
+# BoardConfig.mk — Redmi K90 Pro Max (myron)
+#
+# SoC    : Snapdragon 8 Elite Gen 5 (canoe / sm8850)
+# Android: 16 (API 36) · GKI 2.0 · boot header v4
+# Branch : OrangeFox 14.1 (fox_14.1)
+# Author : MissMyTime 
+# Date   : 2026-04-29
+#
+# This file is heavily commented to serve as a reference for future ports.
+# All values are cross-checked against live device dumps (getprop, magiskboot,
+# lpdump, blockdev --getsize64, lsmod, getevent, etc.).
+#
+# ==============================================================================
 
-DEVICE_PATH := device/xiaomi/myron
-
-# ─────────────────────────────────────────────────────────  
-# Build rules  
-# ─────────────────────────────────────────────────────────  
+# ------------------------------------------------------------------------------
+# 0. Build system workarounds (必需的兼容性标志)
+#    These are needed because recovery builds in a limited source tree.
+# ------------------------------------------------------------------------------
 ALLOW_MISSING_DEPENDENCIES             := true
 BUILD_BROKEN_DUP_RULES                 := true
 BUILD_BROKEN_ELF_PREBUILT_PRODUCT_COPY_FILES := true
@@ -28,27 +28,27 @@ BUILD_BROKEN_PLUGIN_VALIDATION         := \
     soong-libminuitwrp_defaults \
     soong-vold_defaults
 
-# ─────────────────────────────────────────────────────────
-# Architecture
-# Confirmed: ro.product.cpu.abilist=arm64-v8a (getprop)
-# CPU variant: Oryon (Snapdragon 8 Elite Gen 5)
-# Using generic for TARGET_CPU_VARIANT per GKI 2.0 requirement
-# ─────────────────────────────────────────────────────────
+DEVICE_PATH := device/xiaomi/myron   
+
+# ------------------------------------------------------------------------------
+# 1. Architecture (64‑bit only)
+#    Snapdragon 8 Elite Gen 5 已移除 32 位支持，请勿添加 TARGET_2ND_ARCH。
+# ------------------------------------------------------------------------------
 TARGET_ARCH                    := arm64
 TARGET_ARCH_VARIANT            := armv8-a
 TARGET_CPU_ABI                 := arm64-v8a
 TARGET_CPU_ABI2                :=
-TARGET_CPU_VARIANT             := generic
-TARGET_CPU_VARIANT_RUNTIME     := oryon
+TARGET_CPU_VARIANT             := generic      # GKI 2.0 要求
+TARGET_CPU_VARIANT_RUNTIME     := oryon        # Oryon core (Kryo 替换)
 
 ENABLE_CPUSETS    := true
 ENABLE_SCHEDBOOST := true
 
-# ─────────────────────────────────────────────────────────
-# Platform
-# Confirmed: ro.board.platform=canoe, ro.product.board=canoe (getprop)
-# lpdump group: qti_dynamic_partitions_a → QCOM_BOARD_PLATFORMS=canoe
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 2. Platform identification
+#    Confirmed: ro.board.platform=canoe, ro.product.board=canoe
+#               lpdump group: qti_dynamic_partitions_a
+# ------------------------------------------------------------------------------
 PRODUCT_PLATFORM             := canoe
 TARGET_BOOTLOADER_BOARD_NAME := canoe
 TARGET_BOARD_PLATFORM        := canoe
@@ -58,51 +58,40 @@ TARGET_USES_UEFI             := true
 TARGET_USES_HARDWARE_QCOM    := true
 QCOM_BOARD_PLATFORMS         += canoe
 
-# ─────────────────────────────────────────────────────────
-# Kernel — prebuilt GKI 6.12, boot header v4
-# Confirmed from magiskboot:
-#   boot.img   : HEADER_VER=4, PAGESIZE=4096, RAMDISK_SZ=0 (GKI 2.0)
-#                KERNEL_SZ=39963136, CMDLINE=""
-#   vendor_boot: HEADER_VER=4, RAMDISK_FMT=raw, PAGESIZE=4096
-#   init_boot  : HEADER_VER=4, RAMDISK_SZ=2917002, RAMDISK_FMT=lz4_legacy
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 3. Kernel & boot header
+#    boot.img          : HEADER_VER=4, RAMDISK_SZ=0 (GKI 2.0)
+#    recovery.img      : HEADER_VER=4, RAMDISK_SZ=28386861
+#    vendor_boot.img   : HEADER_VER=4, RAMDISK_FMT=raw
+#    init_boot.img     : HEADER_VER=4, RAMDISK_FMT=lz4_legacy
+#
+#    Recovery 镜像本身不带内核，内核由 bootloader 从 boot 分区加载。
+#    为防止 fox_14.1 构建系统报错，提供一个占位内核文件，但强制排除打包。
+# ------------------------------------------------------------------------------
 TARGET_KERNEL_ARCH            := arm64
 TARGET_KERNEL_HEADER_ARCH     := arm64
 BOARD_KERNEL_IMAGE_NAME       := Image
 BOARD_BOOT_HEADER_VERSION     := 4
 BOARD_KERNEL_PAGESIZE         := 4096
 
-# Prebuilt kernel binary (GKI Image, extracted from boot.img via magiskboot)
-# NOTE: This is a PLACEHOLDER. On GKI 2.0 + dedicated recovery, the real kernel
-# lives in boot.img and is loaded by bootloader; recovery.img only contains ramdisk.
-# fox_14.1 build system requires this file to exist, but it is NOT packed into recovery.
+# 占位预编译内核 (取 boot.img 中的 Image 复制而来，构建时需要存在，但不入包)
 TARGET_PREBUILT_KERNEL        := $(DEVICE_PATH)/prebuilt/kernel
+BOARD_EXCLUDE_KERNEL_FROM_RECOVERY_IMAGE := true
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
 
-# vendor_boot ramdisk is raw (confirmed magiskboot RAMDISK_FMT=raw)
-# init_boot ramdisk is lz4_legacy → recovery ramdisk uses lz4
+# 使用 LZ4 压缩 ramdisk (与 init_boot 的 lz4_legacy 兼容)
 BOARD_RAMDISK_USE_LZ4 := true
 
-# ─────────────────────────────────────────────────────────
-# Kernel cmdline — MUST BE EMPTY
-# Confirmed: /proc/cmdline shows all params come via bootconfig mechanism
-# vendor_boot CMDLINE only contains: "video=vfb:... erofs.reserved_pages=64
-#   swinfo.fingerprint=... bootconfig"
-# Setting any cmdline here will CONFLICT with bootloader → instant fastboot
-# ─────────────────────────────────────────────────────────
+# kernel cmdline 必须为空 (所有参数已通过 bootconfig 传入)
 BOARD_KERNEL_CMDLINE :=
 
-# ─────────────────────────────────────────────────────────
-# A/B partition — dedicated recovery partition (NOT recovery-as-boot)
-# Confirmed from fastboot getvar:
-#   has-slot:recovery = yes
-#   is-logical:recovery_a = no  → raw partition in sde28
-#   blockdev --getsize64 /dev/block/by-name/recovery_a = 104857600
-#
-# AB_OTA_PARTITIONS: from lpdump + blockdev, NO mi_ext (not in AB OTA)
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 4. A/B partition layout — dedicated recovery
+#    has-slot:recovery = yes
+#    is-logical:recovery_a = no (raw sde28)
+# ------------------------------------------------------------------------------
 AB_OTA_UPDATER   := true
 AB_OTA_PARTITIONS += \
     boot \
@@ -124,39 +113,33 @@ BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT   := false
 BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT  := false
 BOARD_RECOVERY_NEEDS_BOOTLOADER_CONTROL := true
 
-# Kernel is in vendor_boot, NOT in recovery.img
-BOARD_EXCLUDE_KERNEL_FROM_RECOVERY_IMAGE := true
-
-# ─────────────────────────────────────────────────────────
-# AVB (Android Verified Boot)
-# Confirmed: ro.boot.verifiedbootstate=orange (unlocked)
-#            ro.boot.vbmeta.avb_version=1.3
-#            ro.boot.flash.locked=0
-# Algorithm=NONE: unsigned recovery build, no key needed
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 5. AVB — unlocked device, unsigned recovery build
+#    ro.boot.verifiedbootstate=orange
+#    Algorithm=NONE does not require any keys.
+# ------------------------------------------------------------------------------
 BOARD_AVB_ENABLE                           := true
 BOARD_AVB_ALGORITHM                        := NONE
 BOARD_AVB_RECOVERY_ALGORITHM               := NONE
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX          := 0
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 0
 
-# ─────────────────────────────────────────────────────────
-# Partition sizes — ALL confirmed from blockdev --getsize64
-# ─────────────────────────────────────────────────────────
-BOARD_BOOTIMAGE_PARTITION_SIZE           := 100663296   # sde14, 96MB
-BOARD_INIT_BOOT_IMAGE_PARTITION_SIZE     := 8388608     # sde30, 8MB
-BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE    := 100663296   # sde25, 96MB
-BOARD_RECOVERYIMAGE_PARTITION_SIZE       := 104857600   # sde28, 100MB
+# ------------------------------------------------------------------------------
+# 6. Partition sizes — every value is confirmed by blockdev --getsize64
+# ------------------------------------------------------------------------------
+BOARD_BOOTIMAGE_PARTITION_SIZE           := 100663296   # 96 MB
+BOARD_INIT_BOOT_IMAGE_PARTITION_SIZE     := 8388608     # 8 MB
+BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE    := 100663296   # 96 MB
+BOARD_RECOVERYIMAGE_PARTITION_SIZE       := 104857600   # 100 MB
 
-# ─────────────────────────────────────────────────────────
-# Dynamic partitions (super)
-# Confirmed:
-#   blockdev --getsize64 /dev/block/by-name/super = 14495514624
-#   echo $((14495514624 - 4194304)) = 14491320320
-#   lpdump: Group=qti_dynamic_partitions_a  ← 必须用qti不是xiaomi
-#   lpdump partitions: system,system_ext,system_dlkm,product,
-#                      vendor,vendor_dlkm,odm,mi_ext
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 7. Dynamic partitions (super)
+#    super size: 14495514624 (blockdev)
+#    Group name: qti_dynamic_partitions (lpdump)
+#    Max group size: 14485028864; here we use a bit less (14491320320)
+#    Partition list: system, system_ext, system_dlkm, product,
+#                    vendor, vendor_dlkm, odm, mi_ext
+# ------------------------------------------------------------------------------
 BOARD_PROPERTY_OVERRIDES_SPLIT_ENABLED := true
 BOARD_SUPER_PARTITION_SIZE             := 14495514624
 BOARD_SUPER_PARTITION_GROUPS           := qti_dynamic_partitions
@@ -172,15 +155,11 @@ BOARD_QTI_DYNAMIC_PARTITIONS_PARTITION_LIST := \
     odm \
     mi_ext
 
-# ─────────────────────────────────────────────────────────
-# Filesystem types
-# Confirmed from mount output:
-#   /system, /system_ext, /system_dlkm, /vendor,
-#   /vendor_dlkm, /odm, /product, /mi_ext → erofs
-#   /data → f2fs (dm-54)
-#   /metadata → ext4 (standard for metadata partition)
-# fstab.qcom also shows ext4 fallback for dlkm, but primary=erofs
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 8. Filesystem types
+#    All read‑only images use EROFS (confirmed by mount output).
+#    /data → f2fs; /metadata → ext4.
+# ------------------------------------------------------------------------------
 BOARD_SYSTEMIMAGE_FILE_SYSTEM_TYPE       := erofs
 TARGET_COPY_OUT_SYSTEM                   := system
 
@@ -203,7 +182,7 @@ TARGET_COPY_OUT_VENDOR_DLKM             := vendor_dlkm
 BOARD_ODMIMAGE_FILE_SYSTEM_TYPE          := erofs
 TARGET_COPY_OUT_ODM                      := odm
 
-# mi_ext mounts at /mnt/vendor/mi_ext (confirmed from mount output)
+# mi_ext 挂载在 /mnt/vendor/mi_ext
 BOARD_MI_EXTIMAGE_FILE_SYSTEM_TYPE       := erofs
 TARGET_COPY_OUT_MI_EXT                   := mi_ext
 
@@ -215,29 +194,23 @@ TARGET_USERIMAGES_USE_EXT4               := true
 TARGET_USES_MKE2FS                       := true
 BOARD_HAS_LARGE_FILESYSTEM               := true
 
-# Reserved sizes for OTA building (不影响Recovery编译但保留防OTA失败)
+# OTA reserved sizes (不影响 recovery 但保留以保持完整)
 BOARD_SYSTEMIMAGE_PARTITION_RESERVED_SIZE      := 104857600
 BOARD_SYSTEM_EXTIMAGE_PARTITION_RESERVED_SIZE  := 104857600
 BOARD_PRODUCTIMAGE_PARTITION_RESERVED_SIZE     := 104857600
 BOARD_VENDORIMAGE_PARTITION_RESERVED_SIZE      := 104857600
 BOARD_ODMIMAGE_PARTITION_RESERVED_SIZE         := 104857600
 
-# ─────────────────────────────────────────────────────────
-# Crypto / FBE
-# Confirmed from fstab.qcom:
-#   fileencryption=aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0
-#   metadata_encryption=aes-256-xts:wrappedkey_v0
-#   keydirectory=/metadata/vold/metadata_encryption
+# ------------------------------------------------------------------------------
+# 9. Encryption (FBE v2) — fstab.qcom based
+#    fileencryption= aes-256-xts:aes-256-cts:v2+inlinecrypt_optimized+wrappedkey_v0
+#    metadata_encryption= aes-256-xts:wrappedkey_v0
 #
-# KeyMint stack confirmed from ps -A:
-#   PID 1175: onekeymint-service-qti  (QTI TEE, Rust)
-#   PID 1268: gatekeeper-rust-service-qti (Rust)
-#   PID 1176: qseecomd
-#   PID 1299: keymint3-service.strongbox.nxp (NXP JavaCard SE)
-#
-# readelf confirmed dependencies: libminkdescriptor.so (critical)
-# android.hardware.keymaster@4.0-service-qti also exists in /vendor/bin/hw
-# ─────────────────────────────────────────────────────────
+#    KeyMint stack:
+#      onekeymint-service-qti  (Rust, QTI TEE)
+#      keymint3-service.strongbox.nxp (NXP JavaCard)
+#    Enable vendor keymint support; avoid keymaster 4.x fallback.
+# ------------------------------------------------------------------------------
 BOARD_USES_METADATA_PARTITION           := true
 BOARD_USES_QCOM_FBE_DECRYPTION          := true
 
@@ -246,42 +219,32 @@ TW_INCLUDE_CRYPTO_FBE                   := true
 TW_INCLUDE_FBE_METADATA_DECRYPT         := true
 TW_USE_FSCRYPT_POLICY                   := 2
 
-# OneKeyMint (Rust/TEE) — primary decryption path
+# Primary decryption via OneKeyMint (Rust/TEE)
 TW_CRYPTO_USE_VENDOR_KEYMINT            := true
 TW_KEYMINT_CLIENT_CONNECT_TIMEOUT       := 4000
-# KeyMaster 4.0 fallback exists on device but OneKeyMint is the active path
-# Do NOT set OF_NO_KEYMASTER_VER_4X / OF_DEFAULT_KEYMASTER_VERSION here
-# They conflict with TW_CRYPTO_USE_VENDOR_KEYMINT
 
-# Security patch bypass — confirmed: fastboot version-os=99.87.36
+# Security patch bypass (device reports os=99.87.36, patch=2099‑12‑31)
 PLATFORM_VERSION                        := 99.87.36
 PLATFORM_VERSION_LAST_STABLE            := $(PLATFORM_VERSION)
 PLATFORM_SECURITY_PATCH                 := 2099-12-31
 VENDOR_SECURITY_PATCH                   := $(PLATFORM_SECURITY_PATCH)
 BOOT_SECURITY_PATCH                     := $(PLATFORM_SECURITY_PATCH)
 
-# ─────────────────────────────────────────────────────────
-# Recovery configuration
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 10. Recovery configuration
+# ------------------------------------------------------------------------------
 TARGET_RECOVERY_FSTAB                   := $(DEVICE_PATH)/recovery.fstab
 TARGET_RECOVERY_PIXEL_FORMAT            := RGBX_8888
-TARGET_RECOVERY_QCOM_RTC_FIX           := true
+TARGET_RECOVERY_QCOM_RTC_FIX            := true
 TARGET_SYSTEM_PROP                      += $(DEVICE_PATH)/system.prop
-TW_SKIP_ADDITIONAL_FSTAB               := true
+TW_SKIP_ADDITIONAL_FSTAB                := true       # 仅使用 recovery 自己的 fstab
 
-# ─────────────────────────────────────────────────────────
-# Display
-# Confirmed:
-#   wm size → Physical size: 1200x2608
-#   density → 480
-#   cat /sys/class/backlight/panel0-backlight/max_brightness → 16383
-#   ro.surface_flinger.has_wide_color_display=true → RGBX_8888
-#
-# TW_Y_OFFSET=141, TW_H_OFFSET=-141:
-#   fox_14.1 branch使用编译能进系统（验证通过）
-#   vendor_boot cmdline含y_offset=111但OrangeFox用自己的offset逻辑
-#   保留141/-141（已验证可工作）
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 11. Display
+#     wm size → 1200×2608, density 480
+#     max brightness → 16383
+#     fox_14.1 offsets validated: TW_Y_OFFSET=111, TW_H_OFFSET=-111
+# ------------------------------------------------------------------------------
 TARGET_SCREEN_DENSITY                   := 480
 TARGET_SCREEN_WIDTH                     := 1200
 TARGET_SCREEN_HEIGHT                    := 2608
@@ -291,21 +254,19 @@ TARGET_USES_QCOM_SPR                    := true
 TW_THEME                                := portrait_hdpi
 TW_FRAMERATE                            := 120
 
-# Brightness — confirmed max=16383 (NOT 4094, that was wrong in second config)
 TW_BRIGHTNESS_PATH                      := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS                       := 16383
 TW_DEFAULT_BRIGHTNESS                   := 4096
 
-# Display offset (fox_14.1 validated: 141 works)
 TW_Y_OFFSET                             := 111
 TW_H_OFFSET                             := -111
 TW_STATUS_ICONS_ALIGN                   := center
 TW_NO_SCREEN_BLANK                      := true
-TW_SCREEN_BLANK_ON_BOOT                 := true
 
-# ─────────────────────────────────────────────────────────
-# OrangeFox specific
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 12. OrangeFox‑specific UI & features
+#     OF_SCREEN_H should equal native screen height for 1:1 mapping.
+# ------------------------------------------------------------------------------
 OF_MAINTAINER                           := MissMyTime
 OF_SCREEN_H                             := 2608
 OF_SCREEN_W                             := 1200
@@ -316,25 +277,24 @@ OF_HIDE_NOTCH                           := 1
 OF_CLOCK_POS                            := 0
 OF_SCREEN_LINKS_CORNER                  := 1
 
-# Flashlight — confirmed from /sys/class/leds/
+# Flashlight
 OF_USE_GREEN_LED                        := 1
 OF_FL_PATH1                             := /sys/class/leds/white:flash-1/brightness
 OF_FL_PATH2                             := /sys/class/leds/yellow:flash-0/brightness
 OF_FLASHLIGHT_ENABLE                    := 1
 
-# ─────────────────────────────────────────────────────────
-# Storage
-# Confirmed: /data is f2fs, sdcard via /data/media
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 13. Storage & filesystem tools
+# ------------------------------------------------------------------------------
 RECOVERY_SDCARD_ON_DATA                 := true
 TW_INCLUDE_FUSE_EXFAT                   := true
 TW_INCLUDE_FUSE_NTFS                    := true
 TW_INCLUDE_NTFS_3G                      := true
 TW_ENABLE_FS_COMPRESSION                := true
 
-# ─────────────────────────────────────────────────────────
-# Tools
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 14. Tools and extras
+# ------------------------------------------------------------------------------
 TW_INCLUDE_7ZA                          := true
 TW_INCLUDE_LIBRESETPROP                 := true
 TW_INCLUDE_LPDUMP                       := true
@@ -347,30 +307,19 @@ TW_ENABLE_ALL_PARTITION_TOOLS           := true
 TW_USE_DMCTL                            := true
 TW_USE_BATTERY_SYSFS_STATS              := true
 
-# Battery path confirmed from AVC audit (mca_business_battery driver)
+# Battery info
 TW_POWER_SUPPLY_BATTERY_PATH           := "/sys/class/power_supply/battery"
-# mca_business_battery driver needs ~1.7s to probe; 8s gives enough margin
-TW_BATTERY_SYSFS_WAIT_SECONDS          := 8
+TW_BATTERY_SYSFS_WAIT_SECONDS          := 8   # mca_business_battery 驱动需要 >1.7s
 
-# ─────────────────────────────────────────────────────────
-# Touch / Haptics
-# Confirmed from lsmod:
-#   focaltech_touch_3683 (372736)  — /dev/input/event7, name: focaltech_ts
-#   xiaomi_touch (176128)
-#   gh_irq_lend (20480)
-#   panel_event_notifier (16384)
-# Dependency chain: focaltech → gh_irq_lend + xiaomi_touch → panel_event_notifier
-#
-# qcom-hv-haptics: FF-only device, blocks UI poll → blacklisted
-# uinput-xiaomi: virtual key device → blacklisted
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 15. Touch / Input
+#     focaltech_ts (event7) ; load order: panel_event_notifier → xiaomi_touch → focaltech
+#     Blacklist haptics & virtual keys to avoid UI polling.
+# ------------------------------------------------------------------------------
 TW_INPUT_BLACKLIST                      := "hbtp_vm:qcom-hv-haptics:uinput-xiaomi"
 TW_EXCLUDE_DEFAULT_USB_INIT             := true
 
-# Haptics AIDL — confirmed from odm vintf manifest
-# IVibrator/vibratorfeature (Xiaomi custom fqname)
-# WARNING: vibratorfeature service may not start in recovery context
-# → FIX_OFF=true prevents UI hang on touch
+# Haptics AIDL (vibratorfeature) — may fail; FIX_OFF prevents hang
 TW_SUPPORT_INPUT_AIDL_HAPTICS                       := true
 TW_SUPPORT_INPUT_AIDL_HAPTICS_FQNAME                := "IVibrator/vibratorfeature"
 TW_SUPPORT_INPUT_AIDL_HAPTICS_FW_COMPOSER           := false
@@ -378,44 +327,28 @@ TW_SUPPORT_INPUT_AIDL_HAPTICS_FIX_OFF               := true
 TW_SUPPORT_INPUT_AIDL_HAPTICS_INSTALL_LEGACY_CHECK  := false
 TW_NO_LEGACY_PROPS                                  := true
 
-# Thermal zone — confirmed path exists in /sys/class/thermal/
-# zone45 is CPU cluster temp (validated in second config)
+# CPU temperature
 TW_CUSTOM_CPU_TEMP_PATH                := "/sys/class/thermal/thermal_zone45/temp"
 
-# ─────────────────────────────────────────────────────────
-# Vendor modules
-# Confirmed from lsmod (running system) + modules.dep:
-#
-# LOAD ORDER (5 phases, per modules.dep + lsmod):
-#   Phase1: Gunyah (gh_rm_drv → gh_ctrl → gh_irq_lend → ...)
-#   Phase2: TEE    (smcinvoke → mitee → qsee_ipc → tz_log → tmecom)
-#   Phase3: Crypto (qce50 → qcedev → qcrypto)
-#   Phase4: Display(sync_fence → msm_hw_fence → panel_event_notifier
-#                   → smmu_proxy → hdcp_qseecom → msm_drm)
-#   Phase5: Touch  (xiaomi_touch → focaltech_touch_3683)
-# ─────────────────────────────────────────────────────────
-# Auto-load vendor modules via TWRP (reference: international variant works)
-# ADSP modules are REQUIRED for KeyMint/Weaver init chain on SM8750
+# ------------------------------------------------------------------------------
+# 16. Vendor modules loading
+# Only touch-related modules are manually listed; display and others are auto-loaded.
+# Dependency order verified via live TWRP lsmod/dmesg.
+# ------------------------------------------------------------------------------
 TW_LOAD_VENDOR_MODULES := \
-    "focaltech_touch_3683.ko \
-    xiaomi_touch.ko \
-    adsp_loader_dlkm.ko \
-    q6_dlkm.ko \
-    q6_pdr_dlkm.ko \
-    q6_notifier_dlkm.ko \
-    snd_event_dlkm.ko \
-    gpr_dlkm.ko \
-    spf_core_dlkm.ko \
-    rproc_qcom_common.ko \
-    qcom_q6v5.ko \
-    qcom_q6v5_pas.ko \
-    qcom_sysmon.ko"
+    rproc_qcom_common \
+    smcinvoke_dlkm \
+    gh_rm_drv \
+    gh_irq_lend \
+    panel_event_notifier \
+    xiaomi_touch \
+    focaltech_touch_3683
 TW_LOAD_VENDOR_MODULES_EXCLUDE_GKI     := true
 TW_LOAD_PREBUILT_MODULES_AT_FIRST      := true
 
-# ─────────────────────────────────────────────────────────
-# Misc
-# ─────────────────────────────────────────────────────────
+# ------------------------------------------------------------------------------
+# 17. General recovery preferences
+# ------------------------------------------------------------------------------
 TW_DEFAULT_LANGUAGE                     := zh_CN
 TW_EXTRA_LANGUAGES                      := true
 TW_EXCLUDE_APEX                         := true
@@ -425,23 +358,29 @@ TW_BACKUP_EXCLUSIONS                    := /data/fonts
 TW_DEVICE_VERSION                       := Redmi_K90_Pro_Max
 TW_DEFAULT_TIMEZONE                     := "Asia/Shanghai"
 
-# SDK — confirmed: ro.product.first_api_level=35
-# fox_14.1 builds against SDK 34 AOSP base
+# SDK targeting
 BOARD_SYSTEMSDK_VERSIONS                := 34
 
-# ─────────────────────────────────────────────────────────
-# SELinux
-# ─────────────────────────────────────────────────────────
-# getenforce = Enforcing (confirmed)
-# SELinux must be active for Rust HALs (OneKeyMint/Gatekeeper)
-# BOARD_SEPOLICY_DIRS removed - using AOSP default sepolicy
-# SELINUX_IGNORE_NEVERALLOWS              := true
+# SELinux (keep enforcing; Rust HALs require it)
+# BOARD_SEPOLICY_DIRS not set → using AOSP default sepolicy
 
-# ─────────────────────────────────────────────────────────
-# Debug
-# ─────────────────────────────────────────────────────────
+# Debug tools (optional)
 TARGET_USES_LOGD                       := true
 TWRP_INCLUDE_LOGCAT                    := true
 TARGET_RECOVERY_DEVICE_MODULES         += debuggerd strace
 RECOVERY_BINARY_SOURCE_FILES           += $(TARGET_OUT_EXECUTABLES)/debuggerd
 RECOVERY_BINARY_SOURCE_FILES           += $(TARGET_OUT_EXECUTABLES)/strace
+
+# ==============================================================================
+# NOTE FOR BUILDERS:
+# You MUST also export these FOX_* variables in vendorsetup.sh or the build env:
+#
+#   export FOX_AB_DEVICE=1
+#   export FOX_VIRTUAL_AB_DEVICE=1
+#   export FOX_VANILLA_BUILD=1
+#   export FOX_USE_UPDATED_MAGISKBOOT=1
+#   export FOX_DELETE_AROMAFM=1
+#   export FOX_REMOVE_AAPT=1
+#
+# Rest of OrangeFox variables (OF_*) are already set above.
+# ==============================================================================
