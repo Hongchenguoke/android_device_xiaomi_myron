@@ -88,6 +88,10 @@ PRODUCT_COPY_FILES += \
     $(DEVICE_PATH)/recovery.fstab:$(TARGET_COPY_OUT_RECOVERY)/root/system/etc/recovery.fstab \
     $(DEVICE_PATH)/twrp.fstab:$(TARGET_COPY_OUT_RECOVERY)/root/twrp.fstab \
     $(DEVICE_PATH)/init.recovery.qcom.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.qcom.rc
+    $(DEVICE_PATH)/init.recovery.hlthchrg.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.hlthchrg.rc \
+    $(DEVICE_PATH)/init.recovery.ldconfig.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.ldconfig.rc \
+    $(DEVICE_PATH)/init.recovery.logd.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.logd.rc \
+    $(DEVICE_PATH)/init.recovery.usb.rc:$(TARGET_COPY_OUT_RECOVERY)/root/init.recovery.usb.rc
 
 # Copy any additional files from recovery/root directory
 $(call inherit-product-if-exists, $(DEVICE_PATH)/recovery/root.mk)
