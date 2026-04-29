@@ -2,47 +2,46 @@
 # twrp_myron.mk
 # Top-level product makefile for OrangeFox fox-14.1
 #
-# Device:   Xiaomi Myron (Redmi K90 Pro Max / POCO F8 Ultra)
-# Platform: Canoe (Snapdragon 8 Elite) / Android 16 / GKI 2.0
+# Device:   Xiaomi Myron (Redmi K90 Pro Max)
+# Platform: Canoe (Snapdragon 8 Elite Gen5) / Android 16 / GKI 2.0
 # =============================================================================
 
 # ===========================================================
-# 路径定义
+# Path definition
 # ===========================================================
 DEVICE_PATH := device/xiaomi/myron
 
 # ===========================================================
-# AOSP Product Inheritance (OFox 14.1 验证配置)
+# AOSP Product Inheritance (OFox 14.1 verified config)
 # ===========================================================
 
-# 64位基础
-$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+# Pure 64-bit only (device has no 32-bit support)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit_only.mk)
 
-# 完整基础系统 
+# Full base system (includes telephony)
 $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 
 # ===========================================================
-# 设备专属配置
+# Device-specific configuration
 # ===========================================================
 $(call inherit-product, $(DEVICE_PATH)/device.mk)
 
 # ===========================================================
-# 产品标识
+# Product identification
 # ===========================================================
 PRODUCT_DEVICE       := myron
 PRODUCT_NAME         := twrp_myron
-PRODUCT_BRAND        := Xiaomi
+PRODUCT_BRAND        := Redmi
 PRODUCT_MODEL        := Redmi K90 Pro Max
 PRODUCT_MANUFACTURER := Xiaomi
 
 # ===========================================================
-# Build Fingerprint
-# 用于 OTA 兼容性验证
+# Build Fingerprint & Description (extracted from device getprop)
 # ===========================================================
-BUILD_FINGERPRINT := Xiaomi/myron/myron:16/OS3.0.23.0.WPMCNXM/OS3.0.23.0.WPMCNXM:user/release-keys
+BUILD_FINGERPRINT := Redmi/myron/myron:16/BP2A.250605.031.A3/OS3.0.305.10.WPMCNXM:user/release-keys
 
 # ===========================================================
-# 附加属性（可选，用于版本识别）
+# Additional properties (optional, for version identification)
 # ===========================================================
 PRODUCT_BUILD_PROP_OVERRIDES += \
-    PRIVATE_BUILD_DESC="myron-user 16 OS3.0.23.0.WPMCNXM OS3.0.23.0.WPMCNXM release-keys"
+    PRIVATE_BUILD_DESC="missi-user 16 BP2A.250605.031.A3 16OS3.1.260417.221736839.QCPECN.S release-keys"
