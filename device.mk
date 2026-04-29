@@ -124,8 +124,3 @@ PRODUCT_PROPERTY_OVERRIDES += \
     ro.orangefox.device=myron \
     ro.orangefox.maintainer=$(OF_MAINTAINER) \
     persist.sys.usb.config=mtp,adb
-
-# ===========================================================
-# Include OrangeFox common configuration
-# ===========================================================
-$(call inherit-product, vendor/orangefox/config/common.mk)
