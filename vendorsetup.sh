@@ -16,43 +16,43 @@
 # 	This software is released under GPL version 3 or any later version.
 #	See <http://www.gnu.org/licenses />.
 #
-# 	Device: Xiaomi Myron (Redmi K90 Pro Max / POCO F8 Ultra)
+# 	Device: Xiaomi Myron (Redmi K90 Pro Max )
 # 	Platform: Snapdragon 8 Elite Gen 5 (SM8850 / canoe)
 # 	System: Android 16 / HyperOS 3.0 / GKI 2.0 / Virtual A/B
-# 	100% 真机验证配置
+# 	100% device-verified configuration
 #
 export LC_ALL="C"
 
-# ─── A/B 与分区架构配置 ───────────────────────────────────────────────────────
-# 独立Recovery分区的Virtual A/B设备
+# ─── A/B & partition architecture configuration ─────────────────────────────────────────
+# Virtual A/B device with dedicated recovery partition
 export FOX_AB_DEVICE=1
 export OF_AB_DEVICE_WITH_RECOVERY_PARTITION=1
 export FOX_VIRTUAL_AB_DEVICE=1
-# 新平台使用AIDL版BootControl
+# Use AIDL BootControl for new platforms
 export OF_USE_AIDL_BOOT_CONTROL=1
 
-# ─── API 预编译支持 ───────────────────────────────────────────────────────────
-# 适配API 34预编译库
+# ─── API prebuilt support ───────────────────────────────────────────────────────────────
+# Add prebuilt libraries for API 34
 export FOX_ADD_API_V34_PREBUILTS=1
 
-# ─── 动态分区管理工具 ──────────────────────────────────────────────────────────
-# dmctl 动态分区控制
+# ─── Dynamic partition management tools ────────────────────────────────────────────────
+# dmctl for dynamic partition control
 export OF_USE_DMCTL=1
-# Super分区完整大小（来自真机blockdev验证）
+# Full super partition size (verified via blockdev on device)
 export OF_DYNAMIC_FULL_SIZE=14495514624
-# 格式化调试信息
+# Show debug info during filesystem formatting
 export OF_DISPLAY_FORMAT_FILESYSTEMS_DEBUG_INFO=1
-# 默认Data分区格式为F2FS（真机默认格式）
+# Default data partition format is F2FS (device default)
 export OF_FORCE_DATA_FORMAT_F2FS=1
-# 格式化Data后自动清理Metadata分区
+# Automatically wipe metadata partition after formatting data
 export OF_WIPE_METADATA_AFTER_DATAFORMAT=1
-# 备份功能Bug修复
+# Backup bug workaround
 export OF_WORKAROUND_BACKUP_BUG=1
 
-# ─── 压缩与二进制工具 ─────────────────────────────────────────────────────────
-# LZ4压缩支持
+# ─── Compression & binary tools ────────────────────────────────────────────────────────
+# LZ4 compression support
 export OF_USE_LZ4_COMPRESSION=1
-# 集成所有必要的工具二进制
+# Include essential binary tools
 export FOX_USE_TAR_BINARY=1
 export FOX_USE_SED_BINARY=1
 export FOX_USE_LZ4_BINARY=1
@@ -61,66 +61,66 @@ export FOX_USE_DATE_BINARY=1
 export FOX_USE_GREP_BINARY=1
 export FOX_USE_BUSYBOX_BINARY=1
 export FOX_USE_XZ_UTILS=1
-export FOX_USE_FSCK_EROFS_BINARY=1  # EROFS文件系统检查工具（真机系统分区格式）
+export FOX_USE_FSCK_EROFS_BINARY=1  # EROFS filesystem checker (device system partitions use EROFS)
 export FOX_USE_PATCHELF_BINARY=1
-export FOX_USE_UPDATED_MAGISKBOOT=1 # 新版MagiskBoot支持Android 16
-# Magisk安装器自动移入Ramdisk
+export FOX_USE_UPDATED_MAGISKBOOT=1 # New MagiskBoot supports Android 16
+# Move Magisk installer to ramdisk
 export FOX_MOVE_MAGISK_INSTALLER_TO_RAMDISK=1
 
-# ─── 兼容性与特殊处理 ───────────────────────────────────────────────────────
-# TWRP兼容模式
+# ─── Compatibility & special handling ──────────────────────────────────────────────────
+# TWRP compatibility mode
 export OF_TWRP_COMPATIBILITY_MODE=1
-# 解密后不重启（防止新平台解密后重启Bug）
+# Do not reload after decryption (prevents reboot bug on new platforms)
 export OF_NO_RELOAD_AFTER_DECRYPTION=1
-# 跳过Treble兼容性检查
+# Skip Treble compatibility check
 export OF_NO_TREBLE_COMPATIBILITY_CHECK=1
-# 删除旧的AromaFM（新Recovery不再需要）
+# Remove old AromaFM (no longer needed for new recovery)
 export FOX_DELETE_AROMAFM=1
-# 关闭MIUI补丁警告
+# Suppress MIUI patch warnings
 export OF_NO_MIUI_PATCH_WARNING=1
-# 默认禁用MIUI OTA（防止覆盖Recovery）
+# Disable MIUI OTA by default (prevents overwriting recovery)
 export OF_DISABLE_MIUI_OTA_BY_DEFAULT=1
-# 禁用绿色LED（小米机型使用自定义指示灯）
+# Disable green LED (Xiaomi devices use custom indicator)
 export OF_USE_GREEN_LED=0
 
-# ─── 内核配置 ───────────────────────────────────────────────────────────────
-# 使用预编译内核（GKI 2.0标准）
+# ─── Kernel configuration ──────────────────────────────────────────────────────────────
+# Use prebuilt kernel (GKI 2.0 standard)
 export OF_FORCE_PREBUILT_KERNEL=1
 
-# ─── 显示与硬件配置 ──────────────────────────────────────────────────────────
-# 屏幕参数（100%来自真机验证，修正了旧脚本的错误高度）
+# ─── Display & hardware configuration ──────────────────────────────────────────────────
+# Screen parameters
 export OF_SCREEN_H=2608
-export OF_STATUS_H=141
-export OF_STATUS_INDENT_LEFT=48
-export OF_STATUS_INDENT_RIGHT=48
-# 挖孔屏避让（开启状态栏挖孔隐藏）
+export OF_STATUS_H=144
+export OF_STATUS_INDENT_LEFT=96
+export OF_STATUS_INDENT_RIGHT=96
+# Hide notch (hide punch-hole by black status bar)
 export OF_HIDE_NOTCH=1
-# 禁止禁用导航栏（全面屏机型）
+# Disable navbar disabling (full-screen device)
 export OF_ALLOW_DISABLE_NAVBAR=0
-# 选项列表数量
+# Number of options in list
 export OF_OPTIONS_LIST_NUM=6
-# 使用OrangeFox默认主题（修复默认紫色主题的问题）
+# Use OrangeFox default theme
 export FOX_USE_DEFAULT_THEME=1
 
-# ─── 设置持久化 ──────────────────────────────────────────────────────────────
-# 设置存储在Persist分区（不会被格式化，永久保存）
+# ─── Settings persistence ──────────────────────────────────────────────────────────────
+# Store settings in persist partition (never wiped, permanent)
 export FOX_SETTINGS_ROOT_DIRECTORY=/persist
-# 允许提前加载设置
+# Allow early settings loading
 export FOX_ALLOW_EARLY_SETTINGS_LOAD=1
 
-# ─── Root方案支持 ────────────────────────────────────────────────────────────
-# 全系列Root支持：Magisk / KernelSU / KernelSU Next / Sukisu
+# ─── Root solution support ────────────────────────────────────────────────────────────
+# Full root support: Magisk / KernelSU / KernelSU Next / Sukisu
 export FOX_ENABLE_KERNELSU_SUPPORT=1
 export FOX_ENABLE_KERNELSU_NEXT_SUPPORT=1
 export FOX_ENABLE_SUKISU_SUPPORT=1
-# Magisk默认路径
+# Default Magisk path
 export OF_MAGISK="/tmp/misc/Magisk.zip"
 export FOX_USE_SPECIFIC_MAGISK_ZIP="/tmp/misc/Magisk.zip"
 
-# ─── 维护者与版本信息 ────────────────────────────────────────────────────────
+# ─── Maintainer & version info ────────────────────────────────────────────────────────
 export FOX_BUILD_DEVICE="myron"
 export FOX_VARIANT="Xiaomi_myron_Redmi_K90_Pro_Max"
-# 自动生成维护者版本号（日期格式）
+# Auto-generate maintainer version number (date format)
 export FOX_MAINTAINER_PATCH_VERSION=$(date +%y%m%d)
-# 维护者信息
+# Maintainer name
 export OF_MAINTAINER="MissMyTime"
